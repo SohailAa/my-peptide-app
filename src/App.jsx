@@ -147,7 +147,7 @@ function DisclaimerBanner() {
 function Navbar({ currentPage, setCurrentPage, cartCount, setIsCartOpen, user, setIsAuthModalOpen }) {
   return (
     <nav className="bg-slate-900 text-white p-4 sticky top-0 z-40 shadow-lg">
-      <div className="container mx-auto flex justify-between items-center">
+      <div className="container mx-auto max-w-7xl px-4 flex justify-between items-center">
         <button onClick={() => setCurrentPage('catalog')} className="flex items-center gap-2 hover:opacity-80 transition-opacity">
           <FlaskConical className="text-blue-400" size={28} />
           <span className="text-xl font-bold tracking-tight">Helix<span className="text-blue-400">Peptides</span></span>
@@ -188,7 +188,7 @@ function CatalogPage({ products, setSelectedProduct, addToCart, setCurrentPage }
   return (
     <>
       <div className="bg-slate-50 border-b border-slate-200">
-        <div className="container mx-auto px-4 py-16 md:py-24 grid md:grid-cols-2 gap-8 items-center">
+        <div className="container mx-auto max-w-7xl px-4 py-16 md:py-24 grid md:grid-cols-2 gap-12 lg:gap-16 items-center">
           <div>
             <h1 className="text-4xl md:text-5xl font-extrabold text-slate-900 leading-tight mb-4">
               High-Purity Synthesized Peptides for <span className="text-blue-600">Scientific Discovery</span>
@@ -205,9 +205,8 @@ function CatalogPage({ products, setSelectedProduct, addToCart, setCurrentPage }
               </button>
             </div>
           </div>
-          <div className="hidden md:flex justify-end relative">
-            <div className="absolute -inset-1 bg-gradient-to-r from-blue-600 to-cyan-500 rounded-2xl blur opacity-20"></div>
-            <div className="bg-white p-6 rounded-2xl shadow-xl border border-slate-100 relative w-full max-w-md">
+          <div className="hidden md:flex justify-end relative w-full">
+            <div className="bg-white p-8 rounded-2xl shadow-[0_2px_20px_-4px_rgba(0,0,0,0.05)] border border-slate-200 relative w-full max-w-md">
               <div className="flex items-center gap-3 mb-6">
                 <Microscope className="text-blue-600" size={32} />
                 <h3 className="text-xl font-bold text-slate-800">Quality Assurance</h3>
@@ -231,7 +230,7 @@ function CatalogPage({ products, setSelectedProduct, addToCart, setCurrentPage }
         </div>
       </div>
 
-      <main id="catalog-grid" className="container mx-auto px-4 py-16">
+      <main id="catalog-grid" className="container mx-auto max-w-7xl px-4 py-16">
         <div className="flex flex-col md:flex-row justify-between items-end mb-10 gap-4">
           <div>
             <h2 className="text-3xl font-bold text-slate-900 mb-2">Research Catalog</h2>
@@ -297,7 +296,7 @@ function CatalogPage({ products, setSelectedProduct, addToCart, setCurrentPage }
 
 function QualityControlPage() {
   return (
-    <div className="container mx-auto px-4 py-16 max-w-4xl animate-in fade-in slide-in-from-bottom-4 duration-500">
+    <div className="container mx-auto max-w-5xl px-4 py-16 animate-in fade-in slide-in-from-bottom-4 duration-500">
       <div className="flex items-center gap-4 mb-8">
         <div className="bg-blue-100 p-4 rounded-full">
           <Microscope className="text-blue-600" size={32} />
@@ -354,7 +353,7 @@ function QualityControlPage() {
 
 function SafetyDataPage({ products, setPreviewSDSProduct, handleDownloadSDS }) {
   return (
-    <div className="container mx-auto px-4 py-16 max-w-4xl animate-in fade-in slide-in-from-bottom-4 duration-500">
+    <div className="container mx-auto max-w-6xl px-4 py-16 animate-in fade-in slide-in-from-bottom-4 duration-500">
       <div className="flex items-center gap-4 mb-8">
         <div className="bg-slate-100 p-4 rounded-full">
           <ShieldCheck className="text-slate-600" size={32} />
@@ -419,7 +418,7 @@ function SafetyDataPage({ products, setPreviewSDSProduct, handleDownloadSDS }) {
 
 function ContactPage() {
   return (
-    <div className="container mx-auto px-4 py-16 max-w-5xl animate-in fade-in slide-in-from-bottom-4 duration-500">
+    <div className="container mx-auto max-w-5xl px-4 py-16 animate-in fade-in slide-in-from-bottom-4 duration-500">
       <div className="flex items-center gap-4 mb-8">
         <div className="bg-blue-100 p-4 rounded-full">
           <Mail className="text-blue-600" size={32} />
@@ -544,7 +543,7 @@ function AccountPage({ user, setCurrentPage }) {
   if (!user) return null;
 
   return (
-    <div className="container mx-auto px-4 py-16 max-w-5xl animate-in fade-in duration-500">
+    <div className="container mx-auto max-w-6xl px-4 py-16 animate-in fade-in duration-500">
       <div className="flex justify-between items-end mb-8 border-b border-slate-200 pb-6">
         <div>
           <h1 className="text-3xl font-extrabold text-slate-900">Researcher Portal</h1>
@@ -719,7 +718,7 @@ function AuthModal({ isOpen, setIsOpen }) {
 function Footer({ setCurrentPage }) {
   return (
     <footer className="bg-slate-900 text-slate-400 py-12 md:py-16 mt-auto border-t-8 border-red-600">
-      <div className="container mx-auto px-4 grid md:grid-cols-4 gap-8">
+      <div className="container mx-auto max-w-7xl px-4 grid md:grid-cols-4 gap-8">
         <div className="md:col-span-2">
           <div className="flex items-center gap-2 text-white mb-6">
             <FlaskConical size={24} />
