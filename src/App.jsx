@@ -206,7 +206,9 @@ function CatalogPage({ products, setSelectedProduct, addToCart, setCurrentPage }
             </div>
           </div>
           <div className="hidden md:flex justify-end relative w-full">
-            <div className="bg-white p-8 rounded-2xl shadow-[0_2px_20px_-4px_rgba(0,0,0,0.05)] border border-slate-200 relative w-full max-w-md">
+            <div className="absolute -inset-1 bg-gradient-to-r from-blue-600 to-cyan-500 rounded-2xl blur opacity-20"></div>
+            {/* QA Banner has been given a prominent border as requested */}
+            <div className="bg-white p-8 rounded-2xl shadow-xl border-4 border-blue-500 relative w-full max-w-md">
               <div className="flex items-center gap-3 mb-6">
                 <Microscope className="text-blue-600" size={32} />
                 <h3 className="text-xl font-bold text-slate-800">Quality Assurance</h3>
@@ -974,9 +976,10 @@ function SDSPreviewModal({ previewSDSProduct, setPreviewSDSProduct, handleDownlo
   );
 }
 
-function CartDrawer({ isCartOpen, setIsCartOpen, cart, setCart, user }) {
+function CartDrawer({ isCartOpen, setIsCartOpen, cart, setCart, user, setIsAuthModalOpen }) {
   const [checkoutStep, setCheckoutStep] = useState('cart');
   const [shippingDetails, setShippingDetails] = useState({ firstName: '', lastName: '', email: '', address: '', city: '', state: '', zip: '' });
+  const [cardDetails, setCardDetails] = useState({ number: '', expiry: '', cvc: '', name: '' });
   const [orderNumber, setOrderNumber] = useState('');
   
   // Payment States
@@ -1047,22 +1050,20 @@ function CartDrawer({ isCartOpen, setIsCartOpen, cart, setCart, user }) {
         timestamp: serverTimestamp()
       };
 
-      // Save to global orders AND user's specific history if logged in
       if (user) {
         await addDoc(collection(db, "users", user.uid, "orders"), orderData);
       } else {
         await addDoc(collection(db, "orders"), orderData);
       }
 
-      // 2. Save payment method if requested (Mocking the tokenization process)
+      // 2. Save payment method if requested
       if (user && selectedPaymentMethod === 'new' && saveCardForFuture) {
-        // Generate a mock last4 for the prototype based on random numbers
-        const mockLast4 = Math.floor(1000 + Math.random() * 9000).toString();
+        const mockLast4 = cardDetails.number.slice(-4) || Math.floor(1000 + Math.random() * 9000).toString();
         await addDoc(collection(db, "users", user.uid, "paymentMethods"), {
           brand: "visa",
           last4: mockLast4,
-          expMonth: "12",
-          expYear: "2028",
+          expMonth: cardDetails.expiry.split('/')[0] || "12",
+          expYear: "20" + (cardDetails.expiry.split('/')[1] || "28"),
           timestamp: serverTimestamp()
         });
       }
@@ -1077,16 +1078,50 @@ function CartDrawer({ isCartOpen, setIsCartOpen, cart, setCart, user }) {
     }
   };
 
-  const handleShippingChange = (e) => {
-    setShippingDetails({ ...shippingDetails, [e.target.name]: e.target.value });
+  // Input Handlers and Formatters
+  const handleShippingChange = (e) => setShippingDetails({ ...shippingDetails, [e.target.name]: e.target.value });
+  
+  const handleCardChange = (e) => {
+    let { name, value } = e.target;
+    if (name === 'number') value = value.replace(/[^\d]/g, '');
+    if (name === 'cvc') value = value.replace(/[^\d]/g, '');
+    if (name === 'expiry') {
+       value = value.replace(/[^\d/]/g, '');
+       if (value.length === 2 && !value.includes('/') && cardDetails.expiry.length !== 3) {
+           value += '/';
+       }
+    }
+    setCardDetails(prev => ({ ...prev, [name]: value }));
   };
 
   const removeFromCart = (indexToRemove) => {
     setCart(cart.filter((_, index) => index !== indexToRemove));
   };
 
+  // --- Strict Validation Rules ---
+  const validateEmail = (email) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+  const validateZip = (zip) => /^\d{5}$/.test(zip); // Strict 5 digit ZIP
+  const validateCardNumber = (num) => /^\d{15,16}$/.test(num);
+  const validateExpiry = (exp) => /^(0[1-9]|1[0-2])\/?([0-9]{2})$/.test(exp);
+  const validateCvc = (cvc) => /^\d{3,4}$/.test(cvc);
+
+  const isShippingValid = 
+    shippingDetails.firstName.trim() !== '' &&
+    shippingDetails.lastName.trim() !== '' &&
+    validateEmail(shippingDetails.email) &&
+    shippingDetails.address.trim() !== '' &&
+    shippingDetails.city.trim() !== '' &&
+    shippingDetails.state.trim() !== '' &&
+    validateZip(shippingDetails.zip);
+
+  const isPaymentValid = selectedPaymentMethod !== 'new' || (
+    validateCardNumber(cardDetails.number) &&
+    validateExpiry(cardDetails.expiry) &&
+    validateCvc(cardDetails.cvc) &&
+    cardDetails.name.trim() !== ''
+  );
+
   const cartTotal = cart.reduce((total, item) => total + item.price, 0);
-  const isShippingValid = Object.values(shippingDetails).every(val => val.trim() !== '');
 
   return (
     <>
@@ -1159,7 +1194,14 @@ function CartDrawer({ isCartOpen, setIsCartOpen, cart, setCart, user }) {
                 <label className="block text-xs font-semibold text-slate-600 mb-1">Email</label>
                 <div className="relative">
                   <Mail size={16} className="absolute left-3 top-3 text-slate-400" />
-                  <input type="email" name="email" value={shippingDetails.email} onChange={handleShippingChange} className="w-full pl-9 pr-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm outline-none" placeholder="researcher@lab.com" />
+                  <input 
+                    type="email" 
+                    name="email" 
+                    value={shippingDetails.email} 
+                    onChange={handleShippingChange} 
+                    className={`w-full pl-9 pr-3 py-2 border rounded-lg focus:ring-2 outline-none ${shippingDetails.email !== '' && !validateEmail(shippingDetails.email) ? 'border-red-500 focus:ring-red-500 text-red-600' : 'border-slate-300 focus:ring-blue-500'}`} 
+                    placeholder="researcher@lab.com" 
+                  />
                 </div>
               </div>
               <div>
@@ -1177,7 +1219,15 @@ function CartDrawer({ isCartOpen, setIsCartOpen, cart, setCart, user }) {
                 </div>
                 <div className="col-span-1">
                   <label className="block text-xs font-semibold text-slate-600 mb-1">ZIP</label>
-                  <input type="text" name="zip" value={shippingDetails.zip} onChange={handleShippingChange} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm outline-none" placeholder="90210" />
+                  <input 
+                    type="text" 
+                    name="zip" 
+                    value={shippingDetails.zip} 
+                    onChange={handleShippingChange} 
+                    maxLength="5"
+                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 outline-none ${shippingDetails.zip !== '' && !validateZip(shippingDetails.zip) ? 'border-red-500 focus:ring-red-500 text-red-600' : 'border-slate-300 focus:ring-blue-500'}`} 
+                    placeholder="90210" 
+                  />
                 </div>
               </div>
             </div>
@@ -1236,16 +1286,47 @@ function CartDrawer({ isCartOpen, setIsCartOpen, cart, setCart, user }) {
 
                   <div className="relative">
                     <CreditCard size={16} className="absolute left-3 top-3 text-slate-400" />
-                    <input type="text" placeholder="Card number" className="w-full pl-9 pr-3 py-2 border border-slate-300 rounded-t-lg focus:ring-2 focus:ring-blue-500 text-sm outline-none" />
+                    <input 
+                      type="text" 
+                      name="number"
+                      value={cardDetails.number}
+                      onChange={handleCardChange}
+                      maxLength="16"
+                      placeholder="Card number" 
+                      className={`w-full pl-9 pr-3 py-2 border-b border-l border-r border-t rounded-t-lg focus:ring-2 outline-none text-sm ${cardDetails.number !== '' && !validateCardNumber(cardDetails.number) ? 'border-red-500 focus:ring-red-500 text-red-600 relative z-10' : 'border-slate-300 focus:ring-blue-500'}`} 
+                    />
                   </div>
                   <div className="flex mb-4">
-                    <input type="text" placeholder="MM / YY" className="w-1/2 px-3 py-2 border-b border-l border-r border-slate-300 rounded-bl-lg focus:ring-2 focus:ring-blue-500 text-sm outline-none -mt-px relative z-10" />
-                    <input type="text" placeholder="CVC" className="w-1/2 px-3 py-2 border-b border-r border-slate-300 rounded-br-lg focus:ring-2 focus:ring-blue-500 text-sm outline-none -mt-px -ml-px relative z-10" />
+                    <input 
+                      type="text" 
+                      name="expiry"
+                      value={cardDetails.expiry}
+                      onChange={handleCardChange}
+                      maxLength="5"
+                      placeholder="MM/YY" 
+                      className={`w-1/2 px-3 py-2 border-b border-l border-r rounded-bl-lg focus:ring-2 outline-none text-sm -mt-px relative z-10 ${cardDetails.expiry !== '' && !validateExpiry(cardDetails.expiry) ? 'border-red-500 focus:ring-red-500 text-red-600' : 'border-slate-300 focus:ring-blue-500'}`} 
+                    />
+                    <input 
+                      type="text" 
+                      name="cvc"
+                      value={cardDetails.cvc}
+                      onChange={handleCardChange}
+                      maxLength="4"
+                      placeholder="CVC" 
+                      className={`w-1/2 px-3 py-2 border-b border-r rounded-br-lg focus:ring-2 outline-none text-sm -mt-px -ml-px relative z-10 ${cardDetails.cvc !== '' && !validateCvc(cardDetails.cvc) ? 'border-red-500 focus:ring-red-500 text-red-600' : 'border-slate-300 focus:ring-blue-500'}`} 
+                    />
                   </div>
                   
                   <div>
                     <label className="block text-xs font-semibold text-slate-600 mb-1">Name on card</label>
-                    <input type="text" placeholder="Name on card" className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm outline-none" />
+                    <input 
+                      type="text" 
+                      name="name"
+                      value={cardDetails.name}
+                      onChange={handleCardChange}
+                      placeholder="Name on card" 
+                      className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm outline-none" 
+                    />
                   </div>
 
                   {/* Save Card Option for Logged-in Users */}
@@ -1310,10 +1391,23 @@ function CartDrawer({ isCartOpen, setIsCartOpen, cart, setCart, user }) {
             )}
 
             {checkoutStep === 'cart' && (
-              <button onClick={() => setCheckoutStep('shipping')} className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 rounded-lg shadow-lg transition-colors flex justify-center items-center gap-2">
-                Proceed to Checkout <ChevronRight size={18} />
-              </button>
+              user ? (
+                <button onClick={() => setCheckoutStep('shipping')} className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 rounded-lg shadow-lg transition-colors flex justify-center items-center gap-2">
+                  Proceed to Checkout <ChevronRight size={18} />
+                </button>
+              ) : (
+                <div className="space-y-3 mt-2">
+                  <p className="text-xs text-red-600 font-bold text-center">You must be logged in to place a research order.</p>
+                  <button 
+                    onClick={() => { closeCart(); setIsAuthModalOpen(true); }}
+                    className="w-full bg-slate-900 hover:bg-slate-800 text-white font-bold py-3 rounded-lg transition-colors"
+                  >
+                    Sign In or Register
+                  </button>
+                </div>
+              )
             )}
+            
             {checkoutStep === 'shipping' && (
               <div className="flex gap-2">
                 <button onClick={() => setCheckoutStep('cart')} className="px-4 py-4 rounded-lg font-bold text-slate-600 hover:bg-slate-200 transition-colors">
@@ -1324,6 +1418,7 @@ function CartDrawer({ isCartOpen, setIsCartOpen, cart, setCart, user }) {
                 </button>
               </div>
             )}
+            
             {checkoutStep === 'payment' && (
               <div className="flex gap-2">
                 <button onClick={() => setCheckoutStep('shipping')} disabled={isProcessing} className="px-4 py-4 rounded-lg font-bold text-slate-600 hover:bg-slate-200 transition-colors disabled:opacity-50">
@@ -1331,15 +1426,15 @@ function CartDrawer({ isCartOpen, setIsCartOpen, cart, setCart, user }) {
                 </button>
                 <button 
                   onClick={handlePlaceOrder} 
-                  disabled={isProcessing}
-                  className={`flex-1 ${isProcessing ? 'bg-slate-400' : 'bg-green-600 hover:bg-green-700'} text-white font-bold py-4 rounded-lg shadow-lg transition-colors flex justify-center items-center gap-2`}
+                  disabled={isProcessing || !isPaymentValid}
+                  className={`flex-1 ${isProcessing || !isPaymentValid ? 'bg-slate-400 cursor-not-allowed' : 'bg-green-600 hover:bg-green-700'} text-white font-bold py-4 rounded-lg shadow-lg transition-colors flex justify-center items-center gap-2`}
                 >
                   {isProcessing ? 'Processing...' : `Pay $${cartTotal.toFixed(2)}`} {!isProcessing && <Lock size={16} />}
                 </button>
               </div>
             )}
 
-            {checkoutStep === 'cart' && (
+            {checkoutStep === 'cart' && user && (
               <p className="text-xs text-slate-500 text-center mt-4">
                 By checking out, you reaffirm that these items are for research purposes only.
               </p>
@@ -1449,6 +1544,7 @@ export default function App() {
         cart={cart} 
         setCart={setCart} 
         user={user}
+        setIsAuthModalOpen={setIsAuthModalOpen}
       />
       
       <Footer setCurrentPage={setCurrentPage} />
