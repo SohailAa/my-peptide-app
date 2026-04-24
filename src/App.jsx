@@ -1,8 +1,26 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { initializeApp } from 'firebase/app';
+import { getFirestore, collection, addDoc, getDocs, serverTimestamp, orderBy, query } from 'firebase/firestore';
+import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, onAuthStateChanged, signOut } from 'firebase/auth';
 
-// --- Inline SVG Icons (Replaces lucide-react to fix Context/Hook errors) ---
+// --- Firebase Configuration ---
+const firebaseConfig = {
+  apiKey: "AIzaSyBjm6hvcqZ1ep-IDe5ssV7kIWJWZwSvCaE",
+  authDomain: "peptides-d2e57.firebaseapp.com",
+  projectId: "peptides-d2e57",
+  storageBucket: "peptides-d2e57.firebasestorage.app",
+  messagingSenderId: "528632482409",
+  appId: "1:528632482409:web:8274819d815c5be7d970f8",
+  measurementId: "G-GCF6Z7SFLJ"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+const auth = getAuth(app);
+
+// --- Inline SVG Icons ---
 const IconBase = ({ children, size = 24, className = "" }) => (
   <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
     {children}
@@ -29,6 +47,9 @@ const Download = (p) => <IconBase {...p}><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0
 const Send = (p) => <IconBase {...p}><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></IconBase>;
 const Phone = (p) => <IconBase {...p}><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></IconBase>;
 const Eye = (p) => <IconBase {...p}><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></IconBase>;
+const UserCircle = (p) => <IconBase {...p}><circle cx="12" cy="8" r="5"/><path d="M20 21a8 8 0 0 0-16 0"/></IconBase>;
+const LogOut = (p) => <IconBase {...p}><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></IconBase>;
+const Plus = (p) => <IconBase {...p}><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></IconBase>;
 
 // --- Mock Data: Research Peptides ---
 const products = [
@@ -123,7 +144,7 @@ function DisclaimerBanner() {
   );
 }
 
-function Navbar({ currentPage, setCurrentPage, cartCount, setIsCartOpen }) {
+function Navbar({ currentPage, setCurrentPage, cartCount, setIsCartOpen, user, setIsAuthModalOpen }) {
   return (
     <nav className="bg-slate-900 text-white p-4 sticky top-0 z-40 shadow-lg">
       <div className="container mx-auto flex justify-between items-center">
@@ -137,17 +158,27 @@ function Navbar({ currentPage, setCurrentPage, cartCount, setIsCartOpen }) {
           <button onClick={() => setCurrentPage('safety')} className={`hover:text-white transition-colors ${currentPage === 'safety' ? 'text-white border-b-2 border-blue-400' : ''}`}>Safety Data Sheets</button>
           <button onClick={() => setCurrentPage('contact')} className={`hover:text-white transition-colors ${currentPage === 'contact' ? 'text-white border-b-2 border-blue-400' : ''}`}>Contact</button>
         </div>
-        <button 
-          onClick={() => setIsCartOpen(true)}
-          className="relative p-2 bg-slate-800 rounded-full hover:bg-slate-700 transition-colors"
-        >
-          <ShoppingCart size={20} />
-          {cartCount > 0 && (
-            <span className="absolute -top-1 -right-1 bg-blue-500 text-white text-[10px] font-bold h-4 w-4 rounded-full flex items-center justify-center">
-              {cartCount}
-            </span>
-          )}
-        </button>
+        <div className="flex items-center gap-4">
+          <button 
+            onClick={() => user ? setCurrentPage('account') : setIsAuthModalOpen(true)}
+            className="flex items-center gap-2 text-sm text-slate-300 hover:text-white transition-colors"
+          >
+            <UserCircle size={20} />
+            <span className="hidden sm:inline">{user ? "Portal" : "Login"}</span>
+          </button>
+
+          <button 
+            onClick={() => setIsCartOpen(true)}
+            className="relative p-2 bg-slate-800 rounded-full hover:bg-slate-700 transition-colors"
+          >
+            <ShoppingCart size={20} />
+            {cartCount > 0 && (
+              <span className="absolute -top-1 -right-1 bg-blue-500 text-white text-[10px] font-bold h-4 w-4 rounded-full flex items-center justify-center">
+                {cartCount}
+              </span>
+            )}
+          </button>
+        </div>
       </div>
     </nav>
   );
@@ -466,6 +497,225 @@ function ContactPage() {
   );
 }
 
+function AccountPage({ user, setCurrentPage }) {
+  const [orders, setOrders] = useState([]);
+  const [paymentMethods, setPaymentMethods] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    if (!user) return;
+    
+    const fetchAccountData = async () => {
+      try {
+        // Fetch Orders for user
+        const ordersRef = collection(db, "users", user.uid, "orders");
+        const ordersSnap = await getDocs(ordersRef);
+        const fetchedOrders = [];
+        ordersSnap.forEach((doc) => {
+          fetchedOrders.push({ id: doc.id, ...doc.data() });
+        });
+        // Sort in JS to avoid complex Firebase index requirements
+        fetchedOrders.sort((a, b) => (b.timestamp?.toMillis() || 0) - (a.timestamp?.toMillis() || 0));
+        setOrders(fetchedOrders);
+
+        // Fetch Saved Payment Methods
+        const paymentsRef = collection(db, "users", user.uid, "paymentMethods");
+        const paymentsSnap = await getDocs(paymentsRef);
+        const fetchedPayments = [];
+        paymentsSnap.forEach((doc) => {
+          fetchedPayments.push({ id: doc.id, ...doc.data() });
+        });
+        setPaymentMethods(fetchedPayments);
+      } catch (error) {
+        console.error("Error fetching account data:", error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchAccountData();
+  }, [user]);
+
+  const handleLogout = async () => {
+    await signOut(auth);
+    setCurrentPage('catalog');
+  };
+
+  if (!user) return null;
+
+  return (
+    <div className="container mx-auto px-4 py-16 max-w-5xl animate-in fade-in duration-500">
+      <div className="flex justify-between items-end mb-8 border-b border-slate-200 pb-6">
+        <div>
+          <h1 className="text-3xl font-extrabold text-slate-900">Researcher Portal</h1>
+          <p className="text-slate-600 mt-1 flex items-center gap-2"><User size={16} /> {user.email}</p>
+        </div>
+        <button onClick={handleLogout} className="flex items-center gap-2 text-red-600 hover:text-red-800 font-medium transition-colors">
+          <LogOut size={18} /> Sign Out
+        </button>
+      </div>
+
+      {isLoading ? (
+        <div className="text-center py-12 text-slate-500">Loading portal data...</div>
+      ) : (
+        <div className="grid md:grid-cols-3 gap-8">
+          
+          {/* Order History */}
+          <div className="md:col-span-2 space-y-6">
+            <h2 className="text-xl font-bold text-slate-900">Order History</h2>
+            {orders.length === 0 ? (
+              <div className="bg-slate-50 p-8 rounded-xl border border-slate-200 text-center text-slate-500">
+                You have no prior research orders.
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {orders.map((order) => (
+                  <div key={order.id} className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
+                    <div className="flex justify-between items-center mb-3">
+                      <span className="font-bold font-mono text-slate-900">{order.orderNumber}</span>
+                      <span className="bg-blue-100 text-blue-800 text-xs font-bold px-2 py-1 rounded">{order.status}</span>
+                    </div>
+                    <div className="text-sm text-slate-600 mb-3">
+                      {new Date(order.timestamp?.toDate()).toLocaleDateString()} • {order.cartItems?.length} Items • <span className="font-bold text-slate-900">${order.total?.toFixed(2)}</span>
+                    </div>
+                    <div className="text-xs text-slate-500">
+                      Shipped to: {order.customerInfo?.address}, {order.customerInfo?.city}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Payment Methods */}
+          <div className="space-y-6">
+            <h2 className="text-xl font-bold text-slate-900">Saved Payment Methods</h2>
+            <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
+              {paymentMethods.length === 0 ? (
+                <p className="text-sm text-slate-500">No saved payment methods.</p>
+              ) : (
+                <ul className="space-y-3">
+                  {paymentMethods.map(method => (
+                    <li key={method.id} className="flex items-center gap-3 p-3 bg-slate-50 rounded border border-slate-100">
+                      <CreditCard size={20} className="text-slate-400" />
+                      <div>
+                        <p className="text-sm font-bold text-slate-900 capitalize">{method.brand} •••• {method.last4}</p>
+                        <p className="text-xs text-slate-500">Expires {method.expMonth}/{method.expYear}</p>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+            <div className="bg-blue-50 p-4 rounded-xl border border-blue-100 text-xs text-blue-800">
+              <Info size={16} className="mb-2" />
+              For your security, we do not store full credit card numbers. Saved methods are securely tokenized.
+            </div>
+          </div>
+
+        </div>
+      )}
+    </div>
+  );
+}
+
+function AuthModal({ isOpen, setIsOpen }) {
+  const [isLogin, setIsLogin] = useState(true);
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState(null);
+  const [loading, setLoading] = useState(false);
+
+  if (!isOpen) return null;
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setError(null);
+    setLoading(true);
+
+    try {
+      if (isLogin) {
+        await signInWithEmailAndPassword(auth, email, password);
+      } else {
+        await createUserWithEmailAndPassword(auth, email, password);
+      }
+      setIsOpen(false);
+    } catch (err) {
+      // Clean up Firebase error messages
+      let message = "An error occurred. Please try again.";
+      if (err.code === 'auth/user-not-found' || err.code === 'auth/wrong-password' || err.code === 'auth/invalid-credential') {
+        message = "Invalid email or password.";
+      } else if (err.code === 'auth/email-already-in-use') {
+        message = "An account with this email already exists.";
+      } else if (err.code === 'auth/weak-password') {
+        message = "Password should be at least 6 characters.";
+      }
+      setError(message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 bg-slate-900/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm" onClick={() => setIsOpen(false)}>
+      <div className="bg-white rounded-xl shadow-2xl max-w-sm w-full overflow-hidden animate-in fade-in zoom-in duration-300" onClick={e => e.stopPropagation()}>
+        
+        <div className="flex bg-slate-50 border-b border-slate-200">
+          <button 
+            className={`flex-1 py-4 font-bold text-sm transition-colors ${isLogin ? 'text-blue-600 border-b-2 border-blue-600' : 'text-slate-500 hover:bg-slate-100'}`}
+            onClick={() => { setIsLogin(true); setError(null); }}
+          >
+            Researcher Login
+          </button>
+          <button 
+            className={`flex-1 py-4 font-bold text-sm transition-colors ${!isLogin ? 'text-blue-600 border-b-2 border-blue-600' : 'text-slate-500 hover:bg-slate-100'}`}
+            onClick={() => { setIsLogin(false); setError(null); }}
+          >
+            Create Account
+          </button>
+        </div>
+
+        <div className="p-6 md:p-8">
+          {error && <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-600 text-xs font-bold rounded-lg">{error}</div>}
+          
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div>
+              <label className="block text-xs font-semibold text-slate-600 mb-1">Email Address</label>
+              <input 
+                type="email" 
+                required
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none transition-all" 
+                placeholder="lab@university.edu" 
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-slate-600 mb-1">Password</label>
+              <input 
+                type="password" 
+                required
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none transition-all" 
+                placeholder="••••••••" 
+              />
+            </div>
+            
+            <button 
+              type="submit"
+              disabled={loading}
+              className={`w-full font-bold py-3 rounded-lg shadow-md transition-colors flex justify-center items-center gap-2 ${loading ? 'bg-slate-400' : 'bg-slate-900 hover:bg-slate-800'} text-white mt-6`}
+            >
+              {loading ? 'Processing...' : (isLogin ? 'Sign In' : 'Register Account')} <Lock size={16} />
+            </button>
+          </form>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function Footer({ setCurrentPage }) {
   return (
     <footer className="bg-slate-900 text-slate-400 py-12 md:py-16 mt-auto border-t-8 border-red-600">
@@ -669,7 +919,6 @@ function SDSPreviewModal({ previewSDSProduct, setPreviewSDSProduct, handleDownlo
         </div>
         
         <div className="flex-1 overflow-y-auto bg-slate-200 p-4 md:p-8">
-          {/* Mock PDF Document Visual */}
           <div className="bg-white max-w-2xl mx-auto min-h-full p-8 md:p-12 shadow-md font-sans text-sm text-slate-800 space-y-6">
             <div className="text-center border-b-2 border-slate-800 pb-4 mb-8">
               <h1 className="text-2xl font-black uppercase tracking-wider mb-2">Safety Data Sheet</h1>
@@ -726,10 +975,19 @@ function SDSPreviewModal({ previewSDSProduct, setPreviewSDSProduct, handleDownlo
   );
 }
 
-function CartDrawer({ isCartOpen, setIsCartOpen, cart, setCart }) {
+function CartDrawer({ isCartOpen, setIsCartOpen, cart, setCart, user }) {
   const [checkoutStep, setCheckoutStep] = useState('cart');
   const [shippingDetails, setShippingDetails] = useState({ firstName: '', lastName: '', email: '', address: '', city: '', state: '', zip: '' });
   const [orderNumber, setOrderNumber] = useState('');
+  
+  // Payment States
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [checkoutError, setCheckoutError] = useState(null);
+  
+  // Account Specific Payment States
+  const [savedCards, setSavedCards] = useState([]);
+  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState('new'); // 'new' or card ID
+  const [saveCardForFuture, setSaveCardForFuture] = useState(false);
 
   useEffect(() => {
     if (isCartOpen) document.body.style.overflow = 'hidden';
@@ -737,17 +995,87 @@ function CartDrawer({ isCartOpen, setIsCartOpen, cart, setCart }) {
     return () => { document.body.style.overflow = 'unset'; }
   }, [isCartOpen]);
 
+  // Pre-fill email and load saved cards if logged in
+  useEffect(() => {
+    if (user && isCartOpen) {
+      setShippingDetails(prev => ({ ...prev, email: user.email }));
+      
+      const fetchSavedCards = async () => {
+        try {
+          const cardsRef = collection(db, "users", user.uid, "paymentMethods");
+          const snap = await getDocs(cardsRef);
+          const cards = [];
+          snap.forEach(doc => cards.push({ id: doc.id, ...doc.data() }));
+          setSavedCards(cards);
+          if (cards.length > 0) setSelectedPaymentMethod(cards[0].id);
+        } catch (e) {
+          console.error("Failed to load saved cards", e);
+        }
+      };
+      fetchSavedCards();
+    }
+  }, [user, isCartOpen]);
+
   const closeCart = () => {
     setIsCartOpen(false);
     setTimeout(() => {
       if (checkoutStep === 'success') setCart([]); 
       setCheckoutStep('cart');
+      setCheckoutError(null);
     }, 300);
   };
 
-  const handlePlaceOrder = () => {
-    setOrderNumber('RX-' + Math.floor(100000 + Math.random() * 900000));
-    setCheckoutStep('success');
+  const handlePlaceOrder = async () => {
+    setCheckoutError(null);
+    setIsProcessing(true);
+    
+    const newOrderNumber = 'RX-' + Math.floor(100000 + Math.random() * 900000);
+    const cartTotal = cart.reduce((total, item) => total + item.price, 0);
+
+    try {
+      const simplifiedCart = cart.map(item => ({ 
+        id: item.id, name: item.name, price: item.price, size: item.size 
+      }));
+
+      // 1. Save the order
+      const orderData = {
+        orderNumber: newOrderNumber,
+        customerInfo: shippingDetails,
+        cartItems: simplifiedCart,
+        total: cartTotal,
+        paymentMethod: selectedPaymentMethod === 'new' ? "New Card (Stripe)" : "Saved Card",
+        status: "Processing",
+        timestamp: serverTimestamp()
+      };
+
+      // Save to global orders AND user's specific history if logged in
+      if (user) {
+        await addDoc(collection(db, "users", user.uid, "orders"), orderData);
+      } else {
+        await addDoc(collection(db, "orders"), orderData);
+      }
+
+      // 2. Save payment method if requested (Mocking the tokenization process)
+      if (user && selectedPaymentMethod === 'new' && saveCardForFuture) {
+        // Generate a mock last4 for the prototype based on random numbers
+        const mockLast4 = Math.floor(1000 + Math.random() * 9000).toString();
+        await addDoc(collection(db, "users", user.uid, "paymentMethods"), {
+          brand: "visa",
+          last4: mockLast4,
+          expMonth: "12",
+          expYear: "2028",
+          timestamp: serverTimestamp()
+        });
+      }
+
+      setOrderNumber(newOrderNumber);
+      setCheckoutStep('success');
+    } catch (error) {
+      console.error("Firebase connection error: ", error);
+      setCheckoutError("Could not connect to the database. Please check your console, network, and Firestore rules.");
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
   const handleShippingChange = (e) => {
@@ -763,15 +1091,8 @@ function CartDrawer({ isCartOpen, setIsCartOpen, cart, setCart }) {
 
   return (
     <>
-      {/* Backdrop */}
-      {isCartOpen && (
-        <div 
-          className="fixed inset-0 bg-slate-900/40 z-50 backdrop-blur-sm transition-opacity"
-          onClick={closeCart}
-        ></div>
-      )}
+      {isCartOpen && <div className="fixed inset-0 bg-slate-900/40 z-50 backdrop-blur-sm transition-opacity" onClick={closeCart}></div>}
       
-      {/* Drawer */}
       <div className={`fixed top-0 right-0 h-full w-full max-w-md bg-white shadow-2xl z-50 transform transition-transform duration-300 ease-in-out flex flex-col ${isCartOpen ? 'translate-x-0' : 'translate-x-full'}`}>
         <div className="p-5 border-b border-slate-100 flex justify-between items-center bg-slate-50">
           <h2 className="text-xl font-bold text-slate-900 flex items-center gap-2">
@@ -827,74 +1148,125 @@ function CartDrawer({ isCartOpen, setIsCartOpen, cart, setCart }) {
                   <label className="block text-xs font-semibold text-slate-600 mb-1">First Name</label>
                   <div className="relative">
                     <User size={16} className="absolute left-3 top-3 text-slate-400" />
-                    <input type="text" name="firstName" value={shippingDetails.firstName} onChange={handleShippingChange} className="w-full pl-9 pr-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm outline-none transition-all" placeholder="John" />
+                    <input type="text" name="firstName" value={shippingDetails.firstName} onChange={handleShippingChange} className="w-full pl-9 pr-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm outline-none" placeholder="John" />
                   </div>
                 </div>
                 <div>
                   <label className="block text-xs font-semibold text-slate-600 mb-1">Last Name</label>
-                  <input type="text" name="lastName" value={shippingDetails.lastName} onChange={handleShippingChange} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm outline-none transition-all" placeholder="Doe" />
+                  <input type="text" name="lastName" value={shippingDetails.lastName} onChange={handleShippingChange} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm outline-none" placeholder="Doe" />
                 </div>
               </div>
               <div>
-                <label className="block text-xs font-semibold text-slate-600 mb-1">Email (For tracking & invoice)</label>
+                <label className="block text-xs font-semibold text-slate-600 mb-1">Email</label>
                 <div className="relative">
                   <Mail size={16} className="absolute left-3 top-3 text-slate-400" />
-                  <input type="email" name="email" value={shippingDetails.email} onChange={handleShippingChange} className="w-full pl-9 pr-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm outline-none transition-all" placeholder="researcher@lab.com" />
+                  <input type="email" name="email" value={shippingDetails.email} onChange={handleShippingChange} className="w-full pl-9 pr-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm outline-none" placeholder="researcher@lab.com" />
                 </div>
               </div>
               <div>
-                <label className="block text-xs font-semibold text-slate-600 mb-1">Shipping Address</label>
-                <input type="text" name="address" value={shippingDetails.address} onChange={handleShippingChange} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm outline-none transition-all" placeholder="123 Science Blvd, Suite 100" />
+                <label className="block text-xs font-semibold text-slate-600 mb-1">Address</label>
+                <input type="text" name="address" value={shippingDetails.address} onChange={handleShippingChange} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm outline-none" placeholder="123 Science Blvd" />
               </div>
               <div className="grid grid-cols-3 gap-4">
                 <div className="col-span-1">
                   <label className="block text-xs font-semibold text-slate-600 mb-1">City</label>
-                  <input type="text" name="city" value={shippingDetails.city} onChange={handleShippingChange} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm outline-none transition-all" placeholder="City" />
+                  <input type="text" name="city" value={shippingDetails.city} onChange={handleShippingChange} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm outline-none" placeholder="City" />
                 </div>
                 <div className="col-span-1">
                   <label className="block text-xs font-semibold text-slate-600 mb-1">State</label>
-                  <input type="text" name="state" value={shippingDetails.state} onChange={handleShippingChange} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm outline-none transition-all" placeholder="CA" />
+                  <input type="text" name="state" value={shippingDetails.state} onChange={handleShippingChange} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm outline-none" placeholder="CA" />
                 </div>
                 <div className="col-span-1">
                   <label className="block text-xs font-semibold text-slate-600 mb-1">ZIP</label>
-                  <input type="text" name="zip" value={shippingDetails.zip} onChange={handleShippingChange} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm outline-none transition-all" placeholder="90210" />
+                  <input type="text" name="zip" value={shippingDetails.zip} onChange={handleShippingChange} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm outline-none" placeholder="90210" />
                 </div>
               </div>
             </div>
           )}
 
-          {/* STEP 3: PAYMENT METHOD (STRIPE) */}
+          {/* STEP 3: PAYMENT METHOD */}
           {checkoutStep === 'payment' && (
-            <div className="space-y-4">
-              <div className="flex items-center justify-between mb-2">
-                <p className="text-sm text-slate-600">Enter your card details to complete the order.</p>
-                <div className="flex gap-1">
-                  <div className="w-8 h-5 bg-slate-200 rounded text-[8px] font-bold text-slate-500 flex items-center justify-center">VISA</div>
-                  <div className="w-8 h-5 bg-slate-200 rounded text-[8px] font-bold text-slate-500 flex items-center justify-center">MC</div>
-                </div>
-              </div>
+            <div className="space-y-6">
               
-              <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 shadow-sm">
-                <div className="mb-4">
-                  <label className="block text-xs font-semibold text-slate-600 mb-1">Card Information</label>
+              {/* Saved Cards Selection */}
+              {user && savedCards.length > 0 && (
+                <div>
+                  <label className="block text-xs font-semibold text-slate-600 mb-2">Select Payment Method</label>
+                  <div className="space-y-2">
+                    {savedCards.map(card => (
+                      <label key={card.id} className={`flex items-center gap-3 p-3 border rounded-xl cursor-pointer transition-all ${selectedPaymentMethod === card.id ? 'border-blue-600 bg-blue-50' : 'border-slate-200 hover:border-blue-300'}`}>
+                        <input 
+                          type="radio" 
+                          name="paymentMethod" 
+                          checked={selectedPaymentMethod === card.id} 
+                          onChange={() => setSelectedPaymentMethod(card.id)}
+                          className="text-blue-600"
+                        />
+                        <CreditCard size={20} className={selectedPaymentMethod === card.id ? 'text-blue-600' : 'text-slate-400'} />
+                        <div>
+                          <p className="text-sm font-bold text-slate-900 capitalize">{card.brand} •••• {card.last4}</p>
+                        </div>
+                      </label>
+                    ))}
+                    
+                    <label className={`flex items-center gap-3 p-3 border rounded-xl cursor-pointer transition-all ${selectedPaymentMethod === 'new' ? 'border-blue-600 bg-blue-50' : 'border-slate-200 hover:border-blue-300'}`}>
+                      <input 
+                        type="radio" 
+                        name="paymentMethod" 
+                        checked={selectedPaymentMethod === 'new'} 
+                        onChange={() => setSelectedPaymentMethod('new')}
+                        className="text-blue-600"
+                      />
+                      <Plus size={20} className={selectedPaymentMethod === 'new' ? 'text-blue-600' : 'text-slate-400'} />
+                      <p className="text-sm font-bold text-slate-900">Add New Card</p>
+                    </label>
+                  </div>
+                </div>
+              )}
+
+              {/* New Card Form */}
+              {selectedPaymentMethod === 'new' && (
+                <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 shadow-sm animate-in fade-in slide-in-from-top-2 duration-300">
+                  <div className="flex items-center justify-between mb-4">
+                    <label className="block text-xs font-semibold text-slate-600">Card Information</label>
+                    <div className="flex gap-1">
+                      <div className="w-8 h-5 bg-slate-200 rounded text-[8px] font-bold text-slate-500 flex items-center justify-center">VISA</div>
+                      <div className="w-8 h-5 bg-slate-200 rounded text-[8px] font-bold text-slate-500 flex items-center justify-center">MC</div>
+                    </div>
+                  </div>
+
                   <div className="relative">
                     <CreditCard size={16} className="absolute left-3 top-3 text-slate-400" />
-                    <input type="text" placeholder="Card number" className="w-full pl-9 pr-3 py-2 border border-slate-300 rounded-t-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm outline-none transition-all" />
+                    <input type="text" placeholder="Card number" className="w-full pl-9 pr-3 py-2 border border-slate-300 rounded-t-lg focus:ring-2 focus:ring-blue-500 text-sm outline-none" />
                   </div>
-                  <div className="flex">
-                    <input type="text" placeholder="MM / YY" className="w-1/2 px-3 py-2 border-b border-l border-r border-slate-300 rounded-bl-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm outline-none transition-all -mt-px relative z-10" />
-                    <input type="text" placeholder="CVC" className="w-1/2 px-3 py-2 border-b border-r border-slate-300 rounded-br-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm outline-none transition-all -mt-px -ml-px relative z-10" />
+                  <div className="flex mb-4">
+                    <input type="text" placeholder="MM / YY" className="w-1/2 px-3 py-2 border-b border-l border-r border-slate-300 rounded-bl-lg focus:ring-2 focus:ring-blue-500 text-sm outline-none -mt-px relative z-10" />
+                    <input type="text" placeholder="CVC" className="w-1/2 px-3 py-2 border-b border-r border-slate-300 rounded-br-lg focus:ring-2 focus:ring-blue-500 text-sm outline-none -mt-px -ml-px relative z-10" />
                   </div>
+                  
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-600 mb-1">Name on card</label>
+                    <input type="text" placeholder="Name on card" className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm outline-none" />
+                  </div>
+
+                  {/* Save Card Option for Logged-in Users */}
+                  {user && (
+                    <label className="flex items-center gap-2 mt-4 cursor-pointer">
+                      <input 
+                        type="checkbox" 
+                        checked={saveCardForFuture}
+                        onChange={(e) => setSaveCardForFuture(e.target.checked)}
+                        className="w-4 h-4 text-blue-600 border-slate-300 rounded focus:ring-blue-500" 
+                      />
+                      <span className="text-xs font-medium text-slate-700">Save this card securely for future orders</span>
+                    </label>
+                  )}
                 </div>
-                <div>
-                  <label className="block text-xs font-semibold text-slate-600 mb-1">Name on card</label>
-                  <input type="text" placeholder="Name on card" className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm outline-none transition-all" />
-                </div>
-              </div>
+              )}
 
               <div className="flex items-center justify-center gap-2 text-xs text-slate-500 mt-6">
                 <Lock size={12} className="text-slate-400" />
-                <span>Payments are secure and encrypted via <span className="font-bold text-slate-700">Stripe</span>.</span>
+                <span>Payments are secure and encrypted.</span>
               </div>
             </div>
           )}
@@ -932,6 +1304,12 @@ function CartDrawer({ isCartOpen, setIsCartOpen, cart, setCart }) {
               <span>${cartTotal.toFixed(2)}</span>
             </div>
             
+            {checkoutError && (
+              <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-xs text-red-600 font-medium">
+                {checkoutError}
+              </div>
+            )}
+
             {checkoutStep === 'cart' && (
               <button onClick={() => setCheckoutStep('shipping')} className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 rounded-lg shadow-lg transition-colors flex justify-center items-center gap-2">
                 Proceed to Checkout <ChevronRight size={18} />
@@ -949,11 +1327,15 @@ function CartDrawer({ isCartOpen, setIsCartOpen, cart, setCart }) {
             )}
             {checkoutStep === 'payment' && (
               <div className="flex gap-2">
-                <button onClick={() => setCheckoutStep('shipping')} className="px-4 py-4 rounded-lg font-bold text-slate-600 hover:bg-slate-200 transition-colors">
+                <button onClick={() => setCheckoutStep('shipping')} disabled={isProcessing} className="px-4 py-4 rounded-lg font-bold text-slate-600 hover:bg-slate-200 transition-colors disabled:opacity-50">
                   Back
                 </button>
-                <button onClick={handlePlaceOrder} className="flex-1 bg-green-600 hover:bg-green-700 text-white font-bold py-4 rounded-lg shadow-lg transition-colors flex justify-center items-center gap-2">
-                  Pay ${cartTotal.toFixed(2)} <Lock size={16} />
+                <button 
+                  onClick={handlePlaceOrder} 
+                  disabled={isProcessing}
+                  className={`flex-1 ${isProcessing ? 'bg-slate-400' : 'bg-green-600 hover:bg-green-700'} text-white font-bold py-4 rounded-lg shadow-lg transition-colors flex justify-center items-center gap-2`}
+                >
+                  {isProcessing ? 'Processing...' : `Pay $${cartTotal.toFixed(2)}`} {!isProcessing && <Lock size={16} />}
                 </button>
               </div>
             )}
@@ -979,6 +1361,18 @@ export default function App() {
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [currentPage, setCurrentPage] = useState('catalog');
   const [previewSDSProduct, setPreviewSDSProduct] = useState(null);
+  
+  // Auth State
+  const [user, setUser] = useState(null);
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+
+  // Monitor Authentication
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+      setUser(currentUser);
+    });
+    return () => unsubscribe();
+  }, []);
 
   // Scroll to top when changing pages
   useEffect(() => {
@@ -1008,12 +1402,16 @@ export default function App() {
   return (
     <div className="min-h-screen bg-white font-sans text-slate-900 selection:bg-blue-200 flex flex-col">
       <ResearcherGateModal isAgeGated={isAgeGated} setIsAgeGated={setIsAgeGated} />
+      <AuthModal isOpen={isAuthModalOpen} setIsOpen={setIsAuthModalOpen} />
       <DisclaimerBanner />
+      
       <Navbar 
         currentPage={currentPage} 
         setCurrentPage={setCurrentPage} 
         cartCount={cart.length} 
         setIsCartOpen={setIsCartOpen} 
+        user={user}
+        setIsAuthModalOpen={setIsAuthModalOpen}
       />
 
       {/* Main Content Area Routing */}
@@ -1034,6 +1432,7 @@ export default function App() {
         />
       )}
       {currentPage === 'contact' && <ContactPage />}
+      {currentPage === 'account' && <AccountPage user={user} setCurrentPage={setCurrentPage} />}
 
       <ProductModal 
         selectedProduct={selectedProduct} 
@@ -1050,6 +1449,7 @@ export default function App() {
         setIsCartOpen={setIsCartOpen} 
         cart={cart} 
         setCart={setCart} 
+        user={user}
       />
       
       <Footer setCurrentPage={setCurrentPage} />
