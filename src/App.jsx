@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { initializeApp } from 'firebase/app';
-import { getFirestore, collection, addDoc, getDocs, serverTimestamp, orderBy, query } from 'firebase/firestore';
+import { getFirestore, collection, addDoc, getDocs, serverTimestamp } from 'firebase/firestore';
 import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, onAuthStateChanged, signOut } from 'firebase/auth';
 
 // --- Firebase Configuration ---
@@ -207,7 +207,6 @@ function CatalogPage({ products, setSelectedProduct, addToCart, setCurrentPage }
           </div>
           <div className="hidden md:flex justify-end relative w-full">
             <div className="absolute -inset-1 bg-gradient-to-r from-blue-600 to-cyan-500 rounded-2xl blur opacity-20"></div>
-            {/* QA Banner has been given a prominent border as requested */}
             <div className="bg-white p-8 rounded-2xl shadow-xl border-4 border-blue-500 relative w-full max-w-md">
               <div className="flex items-center gap-3 mb-6">
                 <Microscope className="text-blue-600" size={32} />
@@ -508,18 +507,15 @@ function AccountPage({ user, setCurrentPage }) {
     
     const fetchAccountData = async () => {
       try {
-        // Fetch Orders for user
         const ordersRef = collection(db, "users", user.uid, "orders");
         const ordersSnap = await getDocs(ordersRef);
         const fetchedOrders = [];
         ordersSnap.forEach((doc) => {
           fetchedOrders.push({ id: doc.id, ...doc.data() });
         });
-        // Sort in JS to avoid complex Firebase index requirements
         fetchedOrders.sort((a, b) => (b.timestamp?.toMillis() || 0) - (a.timestamp?.toMillis() || 0));
         setOrders(fetchedOrders);
 
-        // Fetch Saved Payment Methods
         const paymentsRef = collection(db, "users", user.uid, "paymentMethods");
         const paymentsSnap = await getDocs(paymentsRef);
         const fetchedPayments = [];
@@ -561,7 +557,6 @@ function AccountPage({ user, setCurrentPage }) {
       ) : (
         <div className="grid md:grid-cols-3 gap-8">
           
-          {/* Order History */}
           <div className="md:col-span-2 space-y-6">
             <h2 className="text-xl font-bold text-slate-900">Order History</h2>
             {orders.length === 0 ? (
@@ -577,7 +572,7 @@ function AccountPage({ user, setCurrentPage }) {
                       <span className="bg-blue-100 text-blue-800 text-xs font-bold px-2 py-1 rounded">{order.status}</span>
                     </div>
                     <div className="text-sm text-slate-600 mb-3">
-                      {new Date(order.timestamp?.toDate()).toLocaleDateString()} • {order.cartItems?.length} Items • <span className="font-bold text-slate-900">${order.total?.toFixed(2)}</span>
+                      {order.timestamp ? new Date(order.timestamp.seconds * 1000).toLocaleDateString() : 'Processing'} • {order.cartItems?.length} Items • <span className="font-bold text-slate-900">${order.total?.toFixed(2)}</span>
                     </div>
                     <div className="text-xs text-slate-500">
                       Shipped to: {order.customerInfo?.address}, {order.customerInfo?.city}
@@ -588,7 +583,6 @@ function AccountPage({ user, setCurrentPage }) {
             )}
           </div>
 
-          {/* Payment Methods */}
           <div className="space-y-6">
             <h2 className="text-xl font-bold text-slate-900">Saved Payment Methods</h2>
             <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
@@ -642,7 +636,6 @@ function AuthModal({ isOpen, setIsOpen }) {
       }
       setIsOpen(false);
     } catch (err) {
-      // Clean up Firebase error messages
       let message = "An error occurred. Please try again.";
       if (err.code === 'auth/user-not-found' || err.code === 'auth/wrong-password' || err.code === 'auth/invalid-credential') {
         message = "Invalid email or password.";
@@ -687,6 +680,7 @@ function AuthModal({ isOpen, setIsOpen }) {
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
+                autoComplete="email"
                 className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none transition-all" 
                 placeholder="lab@university.edu" 
               />
@@ -698,6 +692,7 @@ function AuthModal({ isOpen, setIsOpen }) {
                 required
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
+                autoComplete={isLogin ? "current-password" : "new-password"}
                 className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none transition-all" 
                 placeholder="••••••••" 
               />
@@ -991,6 +986,10 @@ function CartDrawer({ isCartOpen, setIsCartOpen, cart, setCart, user, setIsAuthM
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState('new'); // 'new' or card ID
   const [saveCardForFuture, setSaveCardForFuture] = useState(false);
 
+  // Address Autocomplete States
+  const [addressSuggestions, setAddressSuggestions] = useState([]);
+  const [showAddressDropdown, setShowAddressDropdown] = useState(false);
+
   useEffect(() => {
     if (isCartOpen) document.body.style.overflow = 'hidden';
     else document.body.style.overflow = 'unset';
@@ -1018,6 +1017,52 @@ function CartDrawer({ isCartOpen, setIsCartOpen, cart, setCart, user, setIsAuthM
     }
   }, [user, isCartOpen]);
 
+  // Address Autocomplete Fetch
+  useEffect(() => {
+    if (shippingDetails.address.length < 5 || !showAddressDropdown) {
+      setAddressSuggestions([]);
+      return;
+    }
+    const timer = setTimeout(async () => {
+      try {
+        const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(shippingDetails.address)}&addressdetails=1&countrycodes=us&limit=5`);
+        
+        // Handle Rate Limiting gracefully on the frontend
+        if (res.status === 429) {
+          console.warn("OpenStreetMap API Rate Limited - Falling back to manual entry");
+          return; 
+        }
+
+        const data = await res.json();
+        setAddressSuggestions(data);
+      } catch (e) {
+        console.error("Address lookup failed", e);
+      }
+    }, 600);
+    return () => clearTimeout(timer);
+  }, [shippingDetails.address, showAddressDropdown]);
+
+  const handleSelectAddress = (suggestion) => {
+    const { address } = suggestion;
+    const streetNumber = address.house_number || '';
+    const road = address.road || '';
+    const street = `${streetNumber} ${road}`.trim();
+    const finalStreet = street || suggestion.display_name.split(',')[0];
+    
+    const city = address.city || address.town || address.village || address.municipality || '';
+    const state = address.state || '';
+    const zip = address.postcode ? address.postcode.split('-')[0] : ''; 
+
+    setShippingDetails(prev => ({
+      ...prev,
+      address: finalStreet,
+      city: city,
+      state: state,
+      zip: zip
+    }));
+    setShowAddressDropdown(false);
+  };
+
   const closeCart = () => {
     setIsCartOpen(false);
     setTimeout(() => {
@@ -1039,7 +1084,8 @@ function CartDrawer({ isCartOpen, setIsCartOpen, cart, setCart, user, setIsAuthM
         id: item.id, name: item.name, price: item.price, size: item.size 
       }));
 
-      // 1. Save the order
+      // NOTE: For Canvas Preview purposes, this continues to use direct Firebase writes.
+      // Once you deploy functions/index.js, you will replace this block with the fetch() API call.
       const orderData = {
         orderNumber: newOrderNumber,
         customerInfo: shippingDetails,
@@ -1056,7 +1102,6 @@ function CartDrawer({ isCartOpen, setIsCartOpen, cart, setCart, user, setIsAuthM
         await addDoc(collection(db, "orders"), orderData);
       }
 
-      // 2. Save payment method if requested
       if (user && selectedPaymentMethod === 'new' && saveCardForFuture) {
         const mockLast4 = cardDetails.number.slice(-4) || Math.floor(1000 + Math.random() * 9000).toString();
         await addDoc(collection(db, "users", user.uid, "paymentMethods"), {
@@ -1079,7 +1124,10 @@ function CartDrawer({ isCartOpen, setIsCartOpen, cart, setCart, user, setIsAuthM
   };
 
   // Input Handlers and Formatters
-  const handleShippingChange = (e) => setShippingDetails({ ...shippingDetails, [e.target.name]: e.target.value });
+  const handleShippingChange = (e) => {
+    setShippingDetails({ ...shippingDetails, [e.target.name]: e.target.value });
+    if (e.target.name === 'address') setShowAddressDropdown(true);
+  };
   
   const handleCardChange = (e) => {
     let { name, value } = e.target;
@@ -1182,12 +1230,12 @@ function CartDrawer({ isCartOpen, setIsCartOpen, cart, setCart, user, setIsAuthM
                   <label className="block text-xs font-semibold text-slate-600 mb-1">First Name</label>
                   <div className="relative">
                     <User size={16} className="absolute left-3 top-3 text-slate-400" />
-                    <input type="text" name="firstName" value={shippingDetails.firstName} onChange={handleShippingChange} className="w-full pl-9 pr-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm outline-none" placeholder="John" />
+                    <input type="text" name="firstName" value={shippingDetails.firstName} onChange={handleShippingChange} autoComplete="given-name" className="w-full pl-9 pr-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm outline-none" placeholder="John" />
                   </div>
                 </div>
                 <div>
                   <label className="block text-xs font-semibold text-slate-600 mb-1">Last Name</label>
-                  <input type="text" name="lastName" value={shippingDetails.lastName} onChange={handleShippingChange} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm outline-none" placeholder="Doe" />
+                  <input type="text" name="lastName" value={shippingDetails.lastName} onChange={handleShippingChange} autoComplete="family-name" className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm outline-none" placeholder="Doe" />
                 </div>
               </div>
               <div>
@@ -1199,23 +1247,56 @@ function CartDrawer({ isCartOpen, setIsCartOpen, cart, setCart, user, setIsAuthM
                     name="email" 
                     value={shippingDetails.email} 
                     onChange={handleShippingChange} 
+                    autoComplete="email"
                     className={`w-full pl-9 pr-3 py-2 border rounded-lg focus:ring-2 outline-none ${shippingDetails.email !== '' && !validateEmail(shippingDetails.email) ? 'border-red-500 focus:ring-red-500 text-red-600' : 'border-slate-300 focus:ring-blue-500'}`} 
                     placeholder="researcher@lab.com" 
                   />
                 </div>
               </div>
-              <div>
-                <label className="block text-xs font-semibold text-slate-600 mb-1">Address</label>
-                <input type="text" name="address" value={shippingDetails.address} onChange={handleShippingChange} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm outline-none" placeholder="123 Science Blvd" />
+              <div className="relative">
+                <label className="block text-xs font-semibold text-slate-600 mb-1">Shipping Address</label>
+                <input 
+                  type="text" 
+                  name="address" 
+                  value={shippingDetails.address} 
+                  onChange={handleShippingChange} 
+                  onFocus={() => setShowAddressDropdown(true)}
+                  onBlur={() => setTimeout(() => setShowAddressDropdown(false), 200)}
+                  autoComplete="street-address" 
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm outline-none" 
+                  placeholder="Start typing your address..." 
+                />
+                {/* Live Address Autocomplete Dropdown */}
+                {showAddressDropdown && addressSuggestions.length > 0 && (
+                  <ul className="absolute z-50 w-full bg-white border border-slate-200 rounded-lg shadow-2xl max-h-60 overflow-y-auto mt-1 top-full left-0 divide-y divide-slate-100">
+                    {addressSuggestions.map(s => (
+                      <li 
+                        key={s.place_id} 
+                        onClick={() => handleSelectAddress(s)} 
+                        className="p-3 hover:bg-blue-50 cursor-pointer transition-colors"
+                      >
+                        <div className="flex items-start gap-2">
+                          <MapPin size={16} className="text-slate-400 shrink-0 mt-0.5" />
+                          <div className="overflow-hidden">
+                            <p className="text-sm font-bold text-slate-900 truncate">
+                              {s.address.house_number ? `${s.address.house_number} ${s.address.road || ''}` : s.display_name.split(',')[0]}
+                            </p>
+                            <p className="text-xs text-slate-500 truncate">{s.display_name}</p>
+                          </div>
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                )}
               </div>
               <div className="grid grid-cols-3 gap-4">
                 <div className="col-span-1">
                   <label className="block text-xs font-semibold text-slate-600 mb-1">City</label>
-                  <input type="text" name="city" value={shippingDetails.city} onChange={handleShippingChange} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm outline-none" placeholder="City" />
+                  <input type="text" name="city" value={shippingDetails.city} onChange={handleShippingChange} autoComplete="address-level2" className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm outline-none" placeholder="City" />
                 </div>
                 <div className="col-span-1">
                   <label className="block text-xs font-semibold text-slate-600 mb-1">State</label>
-                  <input type="text" name="state" value={shippingDetails.state} onChange={handleShippingChange} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm outline-none" placeholder="CA" />
+                  <input type="text" name="state" value={shippingDetails.state} onChange={handleShippingChange} autoComplete="address-level1" className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm outline-none" placeholder="CA" />
                 </div>
                 <div className="col-span-1">
                   <label className="block text-xs font-semibold text-slate-600 mb-1">ZIP</label>
@@ -1225,6 +1306,7 @@ function CartDrawer({ isCartOpen, setIsCartOpen, cart, setCart, user, setIsAuthM
                     value={shippingDetails.zip} 
                     onChange={handleShippingChange} 
                     maxLength="5"
+                    autoComplete="postal-code"
                     className={`w-full px-3 py-2 border rounded-lg focus:ring-2 outline-none ${shippingDetails.zip !== '' && !validateZip(shippingDetails.zip) ? 'border-red-500 focus:ring-red-500 text-red-600' : 'border-slate-300 focus:ring-blue-500'}`} 
                     placeholder="90210" 
                   />
@@ -1292,6 +1374,7 @@ function CartDrawer({ isCartOpen, setIsCartOpen, cart, setCart, user, setIsAuthM
                       value={cardDetails.number}
                       onChange={handleCardChange}
                       maxLength="16"
+                      autoComplete="cc-number"
                       placeholder="Card number" 
                       className={`w-full pl-9 pr-3 py-2 border-b border-l border-r border-t rounded-t-lg focus:ring-2 outline-none text-sm ${cardDetails.number !== '' && !validateCardNumber(cardDetails.number) ? 'border-red-500 focus:ring-red-500 text-red-600 relative z-10' : 'border-slate-300 focus:ring-blue-500'}`} 
                     />
@@ -1303,6 +1386,7 @@ function CartDrawer({ isCartOpen, setIsCartOpen, cart, setCart, user, setIsAuthM
                       value={cardDetails.expiry}
                       onChange={handleCardChange}
                       maxLength="5"
+                      autoComplete="cc-exp"
                       placeholder="MM/YY" 
                       className={`w-1/2 px-3 py-2 border-b border-l border-r rounded-bl-lg focus:ring-2 outline-none text-sm -mt-px relative z-10 ${cardDetails.expiry !== '' && !validateExpiry(cardDetails.expiry) ? 'border-red-500 focus:ring-red-500 text-red-600' : 'border-slate-300 focus:ring-blue-500'}`} 
                     />
@@ -1312,6 +1396,7 @@ function CartDrawer({ isCartOpen, setIsCartOpen, cart, setCart, user, setIsAuthM
                       value={cardDetails.cvc}
                       onChange={handleCardChange}
                       maxLength="4"
+                      autoComplete="cc-csc"
                       placeholder="CVC" 
                       className={`w-1/2 px-3 py-2 border-b border-r rounded-br-lg focus:ring-2 outline-none text-sm -mt-px -ml-px relative z-10 ${cardDetails.cvc !== '' && !validateCvc(cardDetails.cvc) ? 'border-red-500 focus:ring-red-500 text-red-600' : 'border-slate-300 focus:ring-blue-500'}`} 
                     />
@@ -1324,6 +1409,7 @@ function CartDrawer({ isCartOpen, setIsCartOpen, cart, setCart, user, setIsAuthM
                       name="name"
                       value={cardDetails.name}
                       onChange={handleCardChange}
+                      autoComplete="cc-name"
                       placeholder="Name on card" 
                       className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm outline-none" 
                     />
@@ -1447,7 +1533,6 @@ function CartDrawer({ isCartOpen, setIsCartOpen, cart, setCart, user, setIsAuthM
 }
 
 // --- Main App Component ---
-
 export default function App() {
   const [isAgeGated, setIsAgeGated] = useState(true);
   const [cart, setCart] = useState([]);
