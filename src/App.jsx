@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { initializeApp } from 'firebase/app';
-import { getFirestore, collection, addDoc, getDocs, serverTimestamp } from 'firebase/firestore';
+import { getFirestore, collection, addDoc, getDocs, onSnapshot, serverTimestamp } from 'firebase/firestore';
 import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, onAuthStateChanged, signOut } from 'firebase/auth';
 
 // --- Firebase Configuration ---
@@ -49,13 +49,13 @@ const Phone = (p) => <IconBase {...p}><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.7
 const Eye = (p) => <IconBase {...p}><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></IconBase>;
 const UserCircle = (p) => <IconBase {...p}><circle cx="12" cy="8" r="5"/><path d="M20 21a8 8 0 0 0-16 0"/></IconBase>;
 const LogOut = (p) => <IconBase {...p}><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></IconBase>;
-const Plus = (p) => <IconBase {...p}><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></IconBase>;
 
 // --- Mock Data: Research Peptides ---
 const products = [
   { 
     id: 1, 
     name: "BPC-157", 
+    stripePriceId: "price_mock_157", 
     sequence: "L-Val-L-Pro-L-Pro-L-Asp-L-Pro-L-Ala-L-Asp-L-Pro-L-Ala-L-Asp-L-Glu-L-Leu-L-Gln-L-Cys-L-Cys-L-Ser", 
     cas: "137525-51-0", 
     mw: "1419.5 g/mol",
@@ -69,6 +69,7 @@ const products = [
   { 
     id: 2, 
     name: "Semaglutide", 
+    stripePriceId: "price_mock_sema", 
     sequence: "His-Aib-Glu-Gly-Thr-Phe-Thr-Ser-Asp-Val-Ser-Ser-Tyr-Leu-Glu-Gly-Gln-Ala-Ala-Lys(AEEAc-AEEAc-γ-Glu-17-carboxyheptadecanoyl)-Glu-Phe-Ile-Ala-Trp-Leu-Val-Arg-Gly-Arg-Gly", 
     cas: "910463-68-2", 
     mw: "4113.6 g/mol",
@@ -82,6 +83,7 @@ const products = [
   { 
     id: 3, 
     name: "GHK-Cu", 
+    stripePriceId: "price_mock_ghk", 
     sequence: "Gly-His-Lys(Cu2+)", 
     cas: "49557-75-7", 
     mw: "404.9 g/mol",
@@ -91,49 +93,10 @@ const products = [
     image: "https://placehold.co/400x400/f8fafc/475569?text=GHK-Cu%0A50mg",
     description: "Copper-binding tripeptide widely used in molecular biology and cellular matrix research. Characteristic blue lyophilized powder.",
     storage: "Store at 4°C, protected from light"
-  },
-  { 
-    id: 4, 
-    name: "Tirzepatide", 
-    sequence: "Tyr-Aib-Glu-Gly-Thr-Phe-Thr-Ser-Asp-Val-Ser-Ser-Tyr-Leu-Glu-Gly-Gln-Ala-Ala-Lys(AEEAc-AEEAc-γ-Glu-19-carboxynonadecanoyl)-Glu-Phe-Ile-Ala-Trp-Leu-Val-Arg-Gly-Arg-Gly", 
-    cas: "2023788-19-2", 
-    mw: "4813.5 g/mol",
-    price: 145.00, 
-    size: "10mg", 
-    purity: "99.4%",
-    image: "https://placehold.co/400x400/f8fafc/475569?text=Tirzepatide%0A10mg",
-    description: "Dual GIP and GLP-1 receptor agonist synthesized for pre-clinical in-vitro research only.",
-    storage: "Desiccated at -20°C"
-  },
-  { 
-    id: 5, 
-    name: "TB-500", 
-    sequence: "Ac-Ser-Asp-Lys-Pro-Asp-Met-Ala-Glu-Ile-Glu-Lys-Phe-Asp-Lys-Ser-Lys-Leu-Lys-Lys-Thr-Glu-Thr-Gln-Glu-Lys-Asn-Pro-Leu-Pro-Ser-Lys-Glu-Thr-Ile-Glu-Gln-Glu-Lys-Gln-Ala-Gly-Glu-Ser", 
-    cas: "77591-33-4", 
-    mw: "4963.4 g/mol",
-    price: 55.00, 
-    size: "5mg", 
-    purity: "99.1%",
-    image: "https://placehold.co/400x400/f8fafc/475569?text=TB-500%0A5mg",
-    description: "Synthetic version of the naturally occurring peptide Thymosin Beta-4. Strictly for research use in cell migration and actin sequestration assays.",
-    storage: "Desiccated at -20°C"
-  },
-  { 
-    id: 6, 
-    name: "Melanotan II", 
-    sequence: "Ac-Nle-cyclo[Asp-His-D-Phe-Arg-Trp-Lys]-NH2", 
-    cas: "121062-08-6", 
-    mw: "1024.2 g/mol",
-    price: 30.00, 
-    size: "10mg", 
-    purity: "99.6%",
-    image: "https://placehold.co/400x400/f8fafc/475569?text=Melanotan+II%0A10mg",
-    description: "Synthetic melanocortin receptor agonist. Analytical standard for laboratory assay development.",
-    storage: "Desiccated at -20°C"
   }
 ];
 
-// --- Extracted Components ---
+// --- Components ---
 
 function DisclaimerBanner() {
   return (
@@ -232,18 +195,6 @@ function CatalogPage({ products, setSelectedProduct, addToCart, setCurrentPage }
       </div>
 
       <main id="catalog-grid" className="container mx-auto max-w-7xl px-4 py-16">
-        <div className="flex flex-col md:flex-row justify-between items-end mb-10 gap-4">
-          <div>
-            <h2 className="text-3xl font-bold text-slate-900 mb-2">Research Catalog</h2>
-            <p className="text-slate-600">Premium analytical reference standards. Sold as lyophilized powder.</p>
-          </div>
-          <div className="bg-slate-100 p-1 rounded-lg inline-flex">
-            <button className="px-4 py-1.5 bg-white shadow-sm rounded-md text-sm font-medium text-slate-800">All Peptides</button>
-            <button className="px-4 py-1.5 text-sm font-medium text-slate-500 hover:text-slate-800 transition-colors">Vials</button>
-            <button className="px-4 py-1.5 text-sm font-medium text-slate-500 hover:text-slate-800 transition-colors">Kits</button>
-          </div>
-        </div>
-
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
           {products.map((product) => (
             <div key={product.id} className="bg-white border border-slate-200 rounded-xl overflow-hidden hover:shadow-xl transition-all group flex flex-col">
@@ -251,17 +202,7 @@ function CatalogPage({ products, setSelectedProduct, addToCart, setCurrentPage }
                 className="bg-slate-50 aspect-square flex flex-col items-center justify-center cursor-pointer relative overflow-hidden"
                 onClick={() => setSelectedProduct(product)}
               >
-                <div className="absolute top-3 left-3 z-10">
-                  <span className="bg-green-100 text-green-800 text-[10px] font-bold px-2 py-1 rounded border border-green-200 shadow-sm">
-                    &gt;{product.purity} Purity
-                  </span>
-                </div>
                 <img src={product.image} alt={product.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
-                <div className="absolute bottom-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity z-10">
-                  <button className="bg-white text-slate-700 p-2 rounded-full shadow-md hover:bg-slate-100">
-                    <Info size={16} />
-                  </button>
-                </div>
               </div>
               
               <div className="p-5 flex-1 flex flex-col">
@@ -273,12 +214,6 @@ function CatalogPage({ products, setSelectedProduct, addToCart, setCurrentPage }
                 <p className="text-xs text-slate-500 mb-4 font-medium">{product.size} / Lyophilized</p>
                 
                 <div className="mt-auto space-y-3">
-                  <button 
-                    onClick={() => setSelectedProduct(product)}
-                    className="w-full bg-slate-100 hover:bg-slate-200 text-slate-800 font-semibold py-2 px-4 rounded transition-colors text-sm"
-                  >
-                    View Specifications
-                  </button>
                   <button 
                     onClick={() => addToCart(product)}
                     className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded transition-colors text-sm flex justify-center items-center gap-2"
@@ -513,7 +448,11 @@ function AccountPage({ user, setCurrentPage }) {
         ordersSnap.forEach((doc) => {
           fetchedOrders.push({ id: doc.id, ...doc.data() });
         });
-        fetchedOrders.sort((a, b) => (b.timestamp?.toMillis() || 0) - (a.timestamp?.toMillis() || 0));
+        fetchedOrders.sort((a, b) => {
+          const timeA = a.timestamp?.toDate ? a.timestamp.toDate().getTime() : (a.timestamp?._seconds ? a.timestamp._seconds * 1000 : 0);
+          const timeB = b.timestamp?.toDate ? b.timestamp.toDate().getTime() : (b.timestamp?._seconds ? b.timestamp._seconds * 1000 : 0);
+          return timeB - timeA;
+        });
         setOrders(fetchedOrders);
 
         const paymentsRef = collection(db, "users", user.uid, "paymentMethods");
@@ -536,6 +475,13 @@ function AccountPage({ user, setCurrentPage }) {
   const handleLogout = async () => {
     await signOut(auth);
     setCurrentPage('catalog');
+  };
+
+  const formatTimestamp = (timestamp) => {
+    if (!timestamp) return 'Processing';
+    if (timestamp.toDate) return timestamp.toDate().toLocaleDateString();
+    if (timestamp.seconds || timestamp._seconds) return new Date((timestamp.seconds || timestamp._seconds) * 1000).toLocaleDateString();
+    return 'Processing';
   };
 
   if (!user) return null;
@@ -572,7 +518,7 @@ function AccountPage({ user, setCurrentPage }) {
                       <span className="bg-blue-100 text-blue-800 text-xs font-bold px-2 py-1 rounded">{order.status}</span>
                     </div>
                     <div className="text-sm text-slate-600 mb-3">
-                      {order.timestamp ? new Date(order.timestamp.seconds * 1000).toLocaleDateString() : 'Processing'} • {order.cartItems?.length} Items • <span className="font-bold text-slate-900">${order.total?.toFixed(2)}</span>
+                      {formatTimestamp(order.timestamp)} • {order.cartItems?.length} Items • <span className="font-bold text-slate-900">${order.total?.toFixed(2)}</span>
                     </div>
                     <div className="text-xs text-slate-500">
                       Shipped to: {order.customerInfo?.address}, {order.customerInfo?.city}
@@ -614,6 +560,332 @@ function AccountPage({ user, setCurrentPage }) {
   );
 }
 
+function CartDrawer({ isCartOpen, setIsCartOpen, cart, setCart, user, setIsAuthModalOpen }) {
+  const [checkoutStep, setCheckoutStep] = useState('cart');
+  const [shippingDetails, setShippingDetails] = useState({ firstName: '', lastName: '', email: '', address: '', city: '', state: '', zip: '' });
+  
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [checkoutError, setCheckoutError] = useState(null);
+
+  // Address Autocomplete States
+  const [addressSuggestions, setAddressSuggestions] = useState([]);
+  const [showAddressDropdown, setShowAddressDropdown] = useState(false);
+
+  useEffect(() => {
+    if (isCartOpen) document.body.style.overflow = 'hidden';
+    else document.body.style.overflow = 'unset';
+    return () => { document.body.style.overflow = 'unset'; }
+  }, [isCartOpen]);
+
+  // Pre-fill email if logged in
+  useEffect(() => {
+    if (user && isCartOpen) {
+      setShippingDetails(prev => ({ ...prev, email: user.email }));
+    }
+  }, [user, isCartOpen]);
+
+  // OpenStreetMap Address Autocomplete Fetch
+  useEffect(() => {
+    if (shippingDetails.address.length < 5 || !showAddressDropdown) {
+      setAddressSuggestions([]);
+      return;
+    }
+    const timer = setTimeout(async () => {
+      try {
+        const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(shippingDetails.address)}&addressdetails=1&countrycodes=us&limit=5`);
+        if (res.status === 429) return; 
+        const data = await res.json();
+        setAddressSuggestions(data);
+      } catch (e) {
+        console.error("Address lookup failed", e);
+      }
+    }, 600); 
+    return () => clearTimeout(timer);
+  }, [shippingDetails.address, showAddressDropdown]);
+
+  const handleSelectAddress = (suggestion) => {
+    const { address } = suggestion;
+    const street = `${address.house_number || ''} ${address.road || ''}`.trim();
+    const finalStreet = street || suggestion.display_name.split(',')[0];
+    const city = address.city || address.town || address.village || address.municipality || '';
+    const zip = address.postcode ? address.postcode.split('-')[0] : ''; 
+
+    setShippingDetails(prev => ({
+      ...prev,
+      address: finalStreet,
+      city: city,
+      state: address.state || '',
+      zip: zip
+    }));
+    setShowAddressDropdown(false);
+  };
+
+  const closeCart = () => {
+    setIsCartOpen(false);
+    setTimeout(() => {
+      setCheckoutStep('cart');
+      setCheckoutError(null);
+    }, 300);
+  };
+
+  // --- NEW: Firebase Stripe Extension Checkout Logic ---
+  const handleCheckoutRedirect = async () => {
+    setCheckoutError(null);
+    setIsProcessing(true);
+
+    if (!user) {
+      setCheckoutError("Authentication required to communicate with Stripe.");
+      setIsProcessing(false);
+      return;
+    }
+
+    try {
+      // 1. Map your cart items to Stripe line_items format
+      const line_items = cart.map(item => ({
+        price: item.stripePriceId, // This MUST match a real price ID in your Stripe Dashboard
+        quantity: 1
+      }));
+
+      // 2. Add document to the specific checkout_sessions collection for this user
+      // The Stripe Extension is configured to listen to this exact path!
+      const checkoutSessionRef = await addDoc(
+        collection(db, "users", user.uid, "checkout_sessions"), 
+        {
+          mode: 'payment',
+          line_items: line_items,
+          success_url: window.location.origin + '?checkout=success',
+          cancel_url: window.location.origin + '?checkout=cancel',
+          metadata: {
+            customerName: `${shippingDetails.firstName} ${shippingDetails.lastName}`,
+            shippingAddress: `${shippingDetails.address}, ${shippingDetails.city}, ${shippingDetails.state} ${shippingDetails.zip}`
+          }
+        }
+      );
+
+      // 3. Listen for the extension to update the document with the Stripe URL
+      onSnapshot(checkoutSessionRef, (snap) => {
+        const data = snap.data();
+        
+        // If the extension encounters an error (e.g. invalid Price ID)
+        if (data?.error) {
+          setCheckoutError(`Stripe Error: ${data.error.message}`);
+          setIsProcessing(false);
+        }
+        
+        // If the extension successfully generated the secure Stripe URL
+        if (data?.url) {
+          window.location.assign(data.url); // Redirects the browser to Stripe Hosted Checkout
+        }
+      });
+
+    } catch (error) {
+      console.error("Firebase connection error: ", error);
+      setCheckoutError("Could not initialize Stripe Checkout. Check console.");
+      setIsProcessing(false);
+    }
+  };
+
+  const handleShippingChange = (e) => {
+    setShippingDetails({ ...shippingDetails, [e.target.name]: e.target.value });
+    if (e.target.name === 'address') setShowAddressDropdown(true);
+  };
+
+  const removeFromCart = (indexToRemove) => {
+    setCart(cart.filter((_, index) => index !== indexToRemove));
+  };
+
+  // --- Strict Validation Rules ---
+  const validateEmail = (email) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+  const validateZip = (zip) => /^\d{5}$/.test(zip); // Strict 5 digit ZIP
+
+  const isShippingValid = 
+    shippingDetails.firstName.trim() !== '' &&
+    shippingDetails.lastName.trim() !== '' &&
+    validateEmail(shippingDetails.email) &&
+    shippingDetails.address.trim() !== '' &&
+    shippingDetails.city.trim() !== '' &&
+    shippingDetails.state.trim() !== '' &&
+    validateZip(shippingDetails.zip);
+
+  const cartTotal = cart.reduce((total, item) => total + item.price, 0);
+
+  return (
+    <>
+      {isCartOpen && <div className="fixed inset-0 bg-slate-900/40 z-50 backdrop-blur-sm transition-opacity" onClick={closeCart}></div>}
+      
+      <div className={`fixed top-0 right-0 h-full w-full max-w-md bg-white shadow-2xl z-50 transform transition-transform duration-300 ease-in-out flex flex-col ${isCartOpen ? 'translate-x-0' : 'translate-x-full'}`}>
+        <div className="p-5 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+          <h2 className="text-xl font-bold text-slate-900 flex items-center gap-2">
+            {checkoutStep === 'cart' && <><ShoppingCart size={20} /> Research Cart ({cart.length})</>}
+            {checkoutStep === 'shipping' && <><MapPin size={20} /> Shipping Details</>}
+          </h2>
+          <button onClick={closeCart} className="text-slate-400 hover:text-slate-700 transition-colors p-1">
+            <X size={24} />
+          </button>
+        </div>
+
+        <div className="flex-1 overflow-y-auto p-5">
+          {/* STEP 1: CART */}
+          {checkoutStep === 'cart' && (
+            cart.length === 0 ? (
+              <div className="h-full flex flex-col items-center justify-center text-slate-400 gap-4">
+                <ShoppingCart size={48} className="opacity-20" />
+                <p>Your research cart is empty.</p>
+              </div>
+            ) : (
+              <ul className="space-y-4">
+                {cart.map((item, index) => (
+                  <li key={index} className="flex gap-4 p-4 bg-white border border-slate-200 rounded-lg shadow-sm">
+                    <div className="bg-slate-100 rounded h-16 w-16 flex items-center justify-center shrink-0 overflow-hidden border border-slate-200">
+                      <img src={item.image} alt={item.name} className="w-full h-full object-cover" />
+                    </div>
+                    <div className="flex-1">
+                      <h4 className="font-bold text-slate-900 leading-tight">{item.name}</h4>
+                      <p className="text-xs text-slate-500 mb-2">{item.size} • {item.purity} Purity</p>
+                      <div className="flex justify-between items-center">
+                        <span className="font-bold text-blue-700">${item.price.toFixed(2)}</span>
+                        <button onClick={() => removeFromCart(index)} className="text-xs text-red-500 hover:text-red-700 font-medium">Remove</button>
+                      </div>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )
+          )}
+
+          {/* STEP 2: SHIPPING DETAILS */}
+          {checkoutStep === 'shipping' && (
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-600 mb-1">First Name</label>
+                  <input type="text" name="firstName" value={shippingDetails.firstName} onChange={handleShippingChange} autoComplete="given-name" className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm outline-none" placeholder="John" />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-slate-600 mb-1">Last Name</label>
+                  <input type="text" name="lastName" value={shippingDetails.lastName} onChange={handleShippingChange} autoComplete="family-name" className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm outline-none" placeholder="Doe" />
+                </div>
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-slate-600 mb-1">Email</label>
+                <input 
+                  type="email" 
+                  name="email" 
+                  value={shippingDetails.email} 
+                  onChange={handleShippingChange} 
+                  autoComplete="email"
+                  className={`w-full px-3 py-2 border rounded-lg focus:ring-2 outline-none ${shippingDetails.email !== '' && !validateEmail(shippingDetails.email) ? 'border-red-500 focus:ring-red-500 text-red-600' : 'border-slate-300 focus:ring-blue-500'}`} 
+                  placeholder="researcher@lab.com" 
+                />
+              </div>
+              <div className="relative">
+                <label className="block text-xs font-semibold text-slate-600 mb-1">Shipping Address</label>
+                <input 
+                  type="text" 
+                  name="address" 
+                  value={shippingDetails.address} 
+                  onChange={handleShippingChange} 
+                  onFocus={() => setShowAddressDropdown(true)}
+                  onBlur={() => setTimeout(() => setShowAddressDropdown(false), 200)}
+                  autoComplete="street-address" 
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm outline-none" 
+                  placeholder="Start typing your address..." 
+                />
+                {showAddressDropdown && addressSuggestions.length > 0 && (
+                  <ul className="absolute z-50 w-full bg-white border border-slate-200 rounded-lg shadow-2xl max-h-60 overflow-y-auto mt-1 top-full left-0 divide-y divide-slate-100">
+                    {addressSuggestions.map(s => (
+                      <li key={s.place_id} onClick={() => handleSelectAddress(s)} className="p-3 hover:bg-blue-50 cursor-pointer">
+                        <div className="flex items-start gap-2">
+                          <MapPin size={16} className="text-slate-400 shrink-0 mt-0.5" />
+                          <div className="overflow-hidden">
+                            <p className="text-sm font-bold text-slate-900 truncate">
+                              {s.address.house_number ? `${s.address.house_number} ${s.address.road || ''}` : s.display_name.split(',')[0]}
+                            </p>
+                            <p className="text-xs text-slate-500 truncate">{s.display_name}</p>
+                          </div>
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+              <div className="grid grid-cols-3 gap-4">
+                <div className="col-span-1">
+                  <label className="block text-xs font-semibold text-slate-600 mb-1">City</label>
+                  <input type="text" name="city" value={shippingDetails.city} onChange={handleShippingChange} autoComplete="address-level2" className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm outline-none" />
+                </div>
+                <div className="col-span-1">
+                  <label className="block text-xs font-semibold text-slate-600 mb-1">State</label>
+                  <input type="text" name="state" value={shippingDetails.state} onChange={handleShippingChange} autoComplete="address-level1" className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm outline-none" />
+                </div>
+                <div className="col-span-1">
+                  <label className="block text-xs font-semibold text-slate-600 mb-1">ZIP</label>
+                  <input type="text" name="zip" value={shippingDetails.zip} onChange={handleShippingChange} maxLength="5" autoComplete="postal-code" className={`w-full px-3 py-2 border rounded-lg focus:ring-2 outline-none ${shippingDetails.zip !== '' && !validateZip(shippingDetails.zip) ? 'border-red-500 text-red-600' : 'border-slate-300'}`} />
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Persistent Footer Actions */}
+        {cart.length > 0 && (
+          <div className="p-6 border-t border-slate-200 bg-slate-50">
+            <div className="flex justify-between text-lg font-bold text-slate-900 mb-6">
+              <span>Total:</span>
+              <span>${cartTotal.toFixed(2)}</span>
+            </div>
+            
+            {checkoutError && (
+              <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-xs text-red-600 font-medium">
+                {checkoutError}
+              </div>
+            )}
+
+            {checkoutStep === 'cart' && (
+              user ? (
+                <button onClick={() => setCheckoutStep('shipping')} className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 rounded-lg shadow-lg transition-colors flex justify-center items-center gap-2">
+                  Proceed to Checkout <ChevronRight size={18} />
+                </button>
+              ) : (
+                <div className="space-y-3 mt-2">
+                  <p className="text-xs text-red-600 font-bold text-center">You must be logged in to place a research order.</p>
+                  <button onClick={() => { closeCart(); setIsAuthModalOpen(true); }} className="w-full bg-slate-900 hover:bg-slate-800 text-white font-bold py-3 rounded-lg transition-colors">
+                    Sign In or Register
+                  </button>
+                </div>
+              )
+            )}
+            
+            {checkoutStep === 'shipping' && (
+              <div className="flex gap-2">
+                <button onClick={() => setCheckoutStep('cart')} className="px-4 py-4 rounded-lg font-bold text-slate-600 hover:bg-slate-200 transition-colors">
+                  Back
+                </button>
+                {/* This button now triggers the secure redirect to Stripe.
+                  The credit card inputs are handled securely on Stripe's end.
+                */}
+                <button 
+                  onClick={handleCheckoutRedirect} 
+                  disabled={!isShippingValid || isProcessing} 
+                  className={`flex-1 font-bold py-4 rounded-lg shadow-lg transition-colors flex justify-center items-center gap-2 ${isShippingValid && !isProcessing ? 'bg-green-600 hover:bg-green-700 text-white' : 'bg-slate-300 text-slate-500 cursor-not-allowed'}`}
+                >
+                  {isProcessing ? 'Connecting to Stripe...' : `Pay $${cartTotal.toFixed(2)}`} {!isProcessing && <Lock size={16} />}
+                </button>
+              </div>
+            )}
+            
+            {checkoutStep === 'cart' && user && (
+              <p className="text-xs text-slate-500 text-center mt-4">
+                By checking out, you reaffirm that these items are for research purposes only.
+              </p>
+            )}
+          </div>
+        )}
+      </div>
+    </>
+  );
+}
+
 function AuthModal({ isOpen, setIsOpen }) {
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState('');
@@ -636,15 +908,7 @@ function AuthModal({ isOpen, setIsOpen }) {
       }
       setIsOpen(false);
     } catch (err) {
-      let message = "An error occurred. Please try again.";
-      if (err.code === 'auth/user-not-found' || err.code === 'auth/wrong-password' || err.code === 'auth/invalid-credential') {
-        message = "Invalid email or password.";
-      } else if (err.code === 'auth/email-already-in-use') {
-        message = "An account with this email already exists.";
-      } else if (err.code === 'auth/weak-password') {
-        message = "Password should be at least 6 characters.";
-      }
-      setError(message);
+      setError("An error occurred. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -652,59 +916,23 @@ function AuthModal({ isOpen, setIsOpen }) {
 
   return (
     <div className="fixed inset-0 bg-slate-900/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm" onClick={() => setIsOpen(false)}>
-      <div className="bg-white rounded-xl shadow-2xl max-w-sm w-full overflow-hidden animate-in fade-in zoom-in duration-300" onClick={e => e.stopPropagation()}>
-        
+      <div className="bg-white rounded-xl shadow-2xl max-w-sm w-full overflow-hidden" onClick={e => e.stopPropagation()}>
         <div className="flex bg-slate-50 border-b border-slate-200">
-          <button 
-            className={`flex-1 py-4 font-bold text-sm transition-colors ${isLogin ? 'text-blue-600 border-b-2 border-blue-600' : 'text-slate-500 hover:bg-slate-100'}`}
-            onClick={() => { setIsLogin(true); setError(null); }}
-          >
-            Researcher Login
-          </button>
-          <button 
-            className={`flex-1 py-4 font-bold text-sm transition-colors ${!isLogin ? 'text-blue-600 border-b-2 border-blue-600' : 'text-slate-500 hover:bg-slate-100'}`}
-            onClick={() => { setIsLogin(false); setError(null); }}
-          >
-            Create Account
-          </button>
+          <button className={`flex-1 py-4 font-bold text-sm ${isLogin ? 'text-blue-600 border-b-2 border-blue-600' : 'text-slate-500 hover:bg-slate-100'}`} onClick={() => setIsLogin(true)}>Researcher Login</button>
+          <button className={`flex-1 py-4 font-bold text-sm ${!isLogin ? 'text-blue-600 border-b-2 border-blue-600' : 'text-slate-500 hover:bg-slate-100'}`} onClick={() => setIsLogin(false)}>Create Account</button>
         </div>
-
         <div className="p-6 md:p-8">
-          {error && <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-600 text-xs font-bold rounded-lg">{error}</div>}
-          
+          {error && <div className="mb-4 p-3 bg-red-50 text-red-600 text-xs font-bold rounded-lg">{error}</div>}
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <label className="block text-xs font-semibold text-slate-600 mb-1">Email Address</label>
-              <input 
-                type="email" 
-                required
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                autoComplete="email"
-                className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none transition-all" 
-                placeholder="lab@university.edu" 
-              />
+              <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" />
             </div>
             <div>
               <label className="block text-xs font-semibold text-slate-600 mb-1">Password</label>
-              <input 
-                type="password" 
-                required
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                autoComplete={isLogin ? "current-password" : "new-password"}
-                className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none transition-all" 
-                placeholder="••••••••" 
-              />
+              <input type="password" required value={password} onChange={(e) => setPassword(e.target.value)} className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" />
             </div>
-            
-            <button 
-              type="submit"
-              disabled={loading}
-              className={`w-full font-bold py-3 rounded-lg shadow-md transition-colors flex justify-center items-center gap-2 ${loading ? 'bg-slate-400' : 'bg-slate-900 hover:bg-slate-800'} text-white mt-6`}
-            >
-              {loading ? 'Processing...' : (isLogin ? 'Sign In' : 'Register Account')} <Lock size={16} />
-            </button>
+            <button type="submit" disabled={loading} className="w-full font-bold py-3 rounded-lg shadow-md bg-slate-900 text-white mt-6">{loading ? 'Processing...' : (isLogin ? 'Sign In' : 'Register Account')}</button>
           </form>
         </div>
       </div>
@@ -712,107 +940,20 @@ function AuthModal({ isOpen, setIsOpen }) {
   );
 }
 
-function Footer({ setCurrentPage }) {
-  return (
-    <footer className="bg-slate-900 text-slate-400 py-12 md:py-16 mt-auto border-t-8 border-red-600">
-      <div className="container mx-auto max-w-7xl px-4 grid md:grid-cols-4 gap-8">
-        <div className="md:col-span-2">
-          <div className="flex items-center gap-2 text-white mb-6">
-            <FlaskConical size={24} />
-            <span className="text-lg font-bold">HelixPeptides</span>
-          </div>
-          <h4 className="text-white font-bold mb-4 uppercase tracking-wider text-sm flex items-center gap-2">
-            <AlertTriangle size={16} className="text-red-500" /> Compliance Notice
-          </h4>
-          <p className="text-xs leading-relaxed mb-4 text-slate-300">
-            The products offered by HelixPeptides are intended solely for laboratory research and in-vitro analytical testing. They are explicitly <strong>NOT FOR HUMAN OR ANIMAL CONSUMPTION</strong>, administration, diagnostic, or therapeutic use.
-          </p>
-          <p className="text-xs leading-relaxed text-slate-300">
-            These chemicals are not FDA-approved drugs. Purchaser represents and warrants that they are a qualified researcher and will utilize these products strictly in adherence with all local, state, and federal laws. HelixPeptides reserves the right to cancel any order if there is suspicion of intended bodily administration.
-          </p>
-        </div>
-        
-        <div>
-          <h4 className="text-white font-bold mb-4">Quick Links</h4>
-          <ul className="space-y-2 text-sm">
-            <li><button onClick={() => setCurrentPage('catalog')} className="hover:text-white transition-colors">Catalog</button></li>
-            <li><button onClick={() => setCurrentPage('quality')} className="hover:text-white transition-colors">Quality Control</button></li>
-            <li><button onClick={() => setCurrentPage('safety')} className="hover:text-white transition-colors">Safety Data Sheets</button></li>
-            <li><button onClick={() => setCurrentPage('contact')} className="hover:text-white transition-colors">Contact</button></li>
-          </ul>
-        </div>
-
-        <div>
-          <h4 className="text-white font-bold mb-4">Contact Lab</h4>
-          <ul className="space-y-2 text-sm">
-            <li>support@helixpeptides.test</li>
-            <li>(555) 123-4567</li>
-            <li className="mt-4 pt-4 border-t border-slate-700">
-              Operating Hours:<br/>Mon-Fri, 9am - 5pm EST
-            </li>
-          </ul>
-        </div>
-      </div>
-      <div className="container mx-auto px-4 mt-12 pt-8 border-t border-slate-800 text-xs text-center">
-        &copy; {new Date().getFullYear()} HelixPeptides. All rights reserved. For Research Use Only.
-      </div>
-    </footer>
-  );
-}
-
 function ResearcherGateModal({ isAgeGated, setIsAgeGated }) {
   const [termsAccepted, setTermsAccepted] = useState(false);
-
-  useEffect(() => {
-    if (isAgeGated) document.body.style.overflow = 'hidden';
-    else document.body.style.overflow = 'unset';
-    return () => { document.body.style.overflow = 'unset'; }
-  }, [isAgeGated]);
 
   if (!isAgeGated) return null;
 
   return (
     <div className="fixed inset-0 bg-slate-900/90 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
-      <div className="bg-white rounded-xl shadow-2xl max-w-lg w-full p-6 md:p-8 animate-in fade-in zoom-in duration-300">
-        <div className="flex justify-center mb-4">
-          <div className="bg-red-100 p-3 rounded-full">
-            <AlertTriangle className="text-red-600" size={32} />
-          </div>
-        </div>
+      <div className="bg-white rounded-xl shadow-2xl max-w-lg w-full p-6 md:p-8">
         <h2 className="text-2xl font-bold text-center text-slate-900 mb-2">Researcher Verification</h2>
-        <p className="text-center text-slate-600 text-sm mb-6">
-          Please review and acknowledge our terms of service before accessing our catalog.
-        </p>
-        
-        <div className="bg-slate-50 border border-slate-200 rounded-lg p-4 mb-6 h-48 overflow-y-auto text-xs text-slate-700 space-y-3">
-          <p><strong>1. Intended Use:</strong> All products sold on this website are for strictly laboratory and in-vitro research purposes only. They are not intended for human consumption, animal use, or therapeutic applications.</p>
-          <p><strong>2. Regulatory Status:</strong> These products are not FDA-approved drugs. They have not been evaluated for safety or efficacy in humans or animals.</p>
-          <p><strong>3. Assumption of Risk:</strong> The purchaser assumes all risk and liability for the use, handling, and storage of these products. Handling must be performed by qualified professionals using proper laboratory equipment.</p>
-          <p><strong>4. Misuse:</strong> Any communication indicating an intent to use these products for bodily administration will result in immediate account termination and order cancellation.</p>
-        </div>
-
-        <label className="flex items-start gap-3 mb-6 cursor-pointer group">
-          <div className="mt-0.5">
-            <input 
-              type="checkbox" 
-              className="w-5 h-5 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
-              checked={termsAccepted}
-              onChange={(e) => setTermsAccepted(e.target.checked)}
-            />
-          </div>
-          <span className="text-sm text-slate-700 font-medium group-hover:text-slate-900 transition-colors">
-            I certify that I am 21 years of age or older, I am a qualified researcher, and I agree to the Terms of Service. I acknowledge these products are NOT for human consumption.
-          </span>
+        <label className="flex items-start gap-3 mb-6 cursor-pointer">
+          <input type="checkbox" className="w-5 h-5 rounded border-slate-300 text-blue-600 focus:ring-blue-500 mt-0.5" checked={termsAccepted} onChange={(e) => setTermsAccepted(e.target.checked)} />
+          <span className="text-sm text-slate-700 font-medium">I certify that I am 21 years of age or older, I am a qualified researcher, and I agree to the Terms of Service. I acknowledge these products are NOT for human consumption.</span>
         </label>
-
-        <button 
-          disabled={!termsAccepted}
-          onClick={() => setIsAgeGated(false)}
-          className={`w-full py-3 px-4 rounded-lg font-bold text-white transition-all shadow-md
-            ${termsAccepted ? 'bg-blue-600 hover:bg-blue-700 hover:shadow-lg' : 'bg-slate-300 cursor-not-allowed'}`}
-        >
-          Enter Store
-        </button>
+        <button disabled={!termsAccepted} onClick={() => setIsAgeGated(false)} className={`w-full py-3 px-4 rounded-lg font-bold text-white shadow-md ${termsAccepted ? 'bg-blue-600 hover:bg-blue-700' : 'bg-slate-300 cursor-not-allowed'}`}>Enter Store</button>
       </div>
     </div>
   );
@@ -971,568 +1112,54 @@ function SDSPreviewModal({ previewSDSProduct, setPreviewSDSProduct, handleDownlo
   );
 }
 
-function CartDrawer({ isCartOpen, setIsCartOpen, cart, setCart, user, setIsAuthModalOpen }) {
-  const [checkoutStep, setCheckoutStep] = useState('cart');
-  const [shippingDetails, setShippingDetails] = useState({ firstName: '', lastName: '', email: '', address: '', city: '', state: '', zip: '' });
-  const [cardDetails, setCardDetails] = useState({ number: '', expiry: '', cvc: '', name: '' });
-  const [orderNumber, setOrderNumber] = useState('');
-  
-  // Payment States
-  const [isProcessing, setIsProcessing] = useState(false);
-  const [checkoutError, setCheckoutError] = useState(null);
-  
-  // Account Specific Payment States
-  const [savedCards, setSavedCards] = useState([]);
-  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState('new'); // 'new' or card ID
-  const [saveCardForFuture, setSaveCardForFuture] = useState(false);
-
-  // Address Autocomplete States
-  const [addressSuggestions, setAddressSuggestions] = useState([]);
-  const [showAddressDropdown, setShowAddressDropdown] = useState(false);
-
-  useEffect(() => {
-    if (isCartOpen) document.body.style.overflow = 'hidden';
-    else document.body.style.overflow = 'unset';
-    return () => { document.body.style.overflow = 'unset'; }
-  }, [isCartOpen]);
-
-  // Pre-fill email and load saved cards if logged in
-  useEffect(() => {
-    if (user && isCartOpen) {
-      setShippingDetails(prev => ({ ...prev, email: user.email }));
-      
-      const fetchSavedCards = async () => {
-        try {
-          const cardsRef = collection(db, "users", user.uid, "paymentMethods");
-          const snap = await getDocs(cardsRef);
-          const cards = [];
-          snap.forEach(doc => cards.push({ id: doc.id, ...doc.data() }));
-          setSavedCards(cards);
-          if (cards.length > 0) setSelectedPaymentMethod(cards[0].id);
-        } catch (e) {
-          console.error("Failed to load saved cards", e);
-        }
-      };
-      fetchSavedCards();
-    }
-  }, [user, isCartOpen]);
-
-  // Address Autocomplete Fetch
-  useEffect(() => {
-    if (shippingDetails.address.length < 5 || !showAddressDropdown) {
-      setAddressSuggestions([]);
-      return;
-    }
-    const timer = setTimeout(async () => {
-      try {
-        const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(shippingDetails.address)}&addressdetails=1&countrycodes=us&limit=5`);
-        
-        // Handle Rate Limiting gracefully on the frontend
-        if (res.status === 429) {
-          console.warn("OpenStreetMap API Rate Limited - Falling back to manual entry");
-          return; 
-        }
-
-        const data = await res.json();
-        setAddressSuggestions(data);
-      } catch (e) {
-        console.error("Address lookup failed", e);
-      }
-    }, 600);
-    return () => clearTimeout(timer);
-  }, [shippingDetails.address, showAddressDropdown]);
-
-  const handleSelectAddress = (suggestion) => {
-    const { address } = suggestion;
-    const streetNumber = address.house_number || '';
-    const road = address.road || '';
-    const street = `${streetNumber} ${road}`.trim();
-    const finalStreet = street || suggestion.display_name.split(',')[0];
-    
-    const city = address.city || address.town || address.village || address.municipality || '';
-    const state = address.state || '';
-    const zip = address.postcode ? address.postcode.split('-')[0] : ''; 
-
-    setShippingDetails(prev => ({
-      ...prev,
-      address: finalStreet,
-      city: city,
-      state: state,
-      zip: zip
-    }));
-    setShowAddressDropdown(false);
-  };
-
-  const closeCart = () => {
-    setIsCartOpen(false);
-    setTimeout(() => {
-      if (checkoutStep === 'success') setCart([]); 
-      setCheckoutStep('cart');
-      setCheckoutError(null);
-    }, 300);
-  };
-
-  const handlePlaceOrder = async () => {
-    setCheckoutError(null);
-    setIsProcessing(true);
-    
-    const newOrderNumber = 'RX-' + Math.floor(100000 + Math.random() * 900000);
-    const cartTotal = cart.reduce((total, item) => total + item.price, 0);
-
-    try {
-      const simplifiedCart = cart.map(item => ({ 
-        id: item.id, name: item.name, price: item.price, size: item.size 
-      }));
-
-      // NOTE: For Canvas Preview purposes, this continues to use direct Firebase writes.
-      // Once you deploy functions/index.js, you will replace this block with the fetch() API call.
-      const orderData = {
-        orderNumber: newOrderNumber,
-        customerInfo: shippingDetails,
-        cartItems: simplifiedCart,
-        total: cartTotal,
-        paymentMethod: selectedPaymentMethod === 'new' ? "New Card (Stripe)" : "Saved Card",
-        status: "Processing",
-        timestamp: serverTimestamp()
-      };
-
-      if (user) {
-        await addDoc(collection(db, "users", user.uid, "orders"), orderData);
-      } else {
-        await addDoc(collection(db, "orders"), orderData);
-      }
-
-      if (user && selectedPaymentMethod === 'new' && saveCardForFuture) {
-        const mockLast4 = cardDetails.number.slice(-4) || Math.floor(1000 + Math.random() * 9000).toString();
-        await addDoc(collection(db, "users", user.uid, "paymentMethods"), {
-          brand: "visa",
-          last4: mockLast4,
-          expMonth: cardDetails.expiry.split('/')[0] || "12",
-          expYear: "20" + (cardDetails.expiry.split('/')[1] || "28"),
-          timestamp: serverTimestamp()
-        });
-      }
-
-      setOrderNumber(newOrderNumber);
-      setCheckoutStep('success');
-    } catch (error) {
-      console.error("Firebase connection error: ", error);
-      setCheckoutError("Could not connect to the database. Please check your console, network, and Firestore rules.");
-    } finally {
-      setIsProcessing(false);
-    }
-  };
-
-  // Input Handlers and Formatters
-  const handleShippingChange = (e) => {
-    setShippingDetails({ ...shippingDetails, [e.target.name]: e.target.value });
-    if (e.target.name === 'address') setShowAddressDropdown(true);
-  };
-  
-  const handleCardChange = (e) => {
-    let { name, value } = e.target;
-    if (name === 'number') value = value.replace(/[^\d]/g, '');
-    if (name === 'cvc') value = value.replace(/[^\d]/g, '');
-    if (name === 'expiry') {
-       value = value.replace(/[^\d/]/g, '');
-       if (value.length === 2 && !value.includes('/') && cardDetails.expiry.length !== 3) {
-           value += '/';
-       }
-    }
-    setCardDetails(prev => ({ ...prev, [name]: value }));
-  };
-
-  const removeFromCart = (indexToRemove) => {
-    setCart(cart.filter((_, index) => index !== indexToRemove));
-  };
-
-  // --- Strict Validation Rules ---
-  const validateEmail = (email) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
-  const validateZip = (zip) => /^\d{5}$/.test(zip); // Strict 5 digit ZIP
-  const validateCardNumber = (num) => /^\d{15,16}$/.test(num);
-  const validateExpiry = (exp) => /^(0[1-9]|1[0-2])\/?([0-9]{2})$/.test(exp);
-  const validateCvc = (cvc) => /^\d{3,4}$/.test(cvc);
-
-  const isShippingValid = 
-    shippingDetails.firstName.trim() !== '' &&
-    shippingDetails.lastName.trim() !== '' &&
-    validateEmail(shippingDetails.email) &&
-    shippingDetails.address.trim() !== '' &&
-    shippingDetails.city.trim() !== '' &&
-    shippingDetails.state.trim() !== '' &&
-    validateZip(shippingDetails.zip);
-
-  const isPaymentValid = selectedPaymentMethod !== 'new' || (
-    validateCardNumber(cardDetails.number) &&
-    validateExpiry(cardDetails.expiry) &&
-    validateCvc(cardDetails.cvc) &&
-    cardDetails.name.trim() !== ''
-  );
-
-  const cartTotal = cart.reduce((total, item) => total + item.price, 0);
-
+function Footer({ setCurrentPage }) {
   return (
-    <>
-      {isCartOpen && <div className="fixed inset-0 bg-slate-900/40 z-50 backdrop-blur-sm transition-opacity" onClick={closeCart}></div>}
-      
-      <div className={`fixed top-0 right-0 h-full w-full max-w-md bg-white shadow-2xl z-50 transform transition-transform duration-300 ease-in-out flex flex-col ${isCartOpen ? 'translate-x-0' : 'translate-x-full'}`}>
-        <div className="p-5 border-b border-slate-100 flex justify-between items-center bg-slate-50">
-          <h2 className="text-xl font-bold text-slate-900 flex items-center gap-2">
-            {checkoutStep === 'cart' && <><ShoppingCart size={20} /> Research Cart ({cart.length})</>}
-            {checkoutStep === 'shipping' && <><MapPin size={20} /> Shipping Details</>}
-            {checkoutStep === 'payment' && <><CreditCard size={20} /> Secure Checkout</>}
-            {checkoutStep === 'success' && <><Check size={20} className="text-green-600" /> Order Confirmed</>}
-          </h2>
-          <button onClick={closeCart} className="text-slate-400 hover:text-slate-700 transition-colors p-1">
-            <X size={24} />
-          </button>
-        </div>
-
-        <div className="flex-1 overflow-y-auto p-5">
-          {/* STEP 1: CART */}
-          {checkoutStep === 'cart' && (
-            cart.length === 0 ? (
-              <div className="h-full flex flex-col items-center justify-center text-slate-400 gap-4">
-                <ShoppingCart size={48} className="opacity-20" />
-                <p>Your research cart is empty.</p>
-                <button onClick={closeCart} className="text-blue-600 font-medium hover:underline mt-2">
-                  Continue Browsing
-                </button>
-              </div>
-            ) : (
-              <ul className="space-y-4">
-                {cart.map((item, index) => (
-                  <li key={index} className="flex gap-4 p-4 bg-white border border-slate-200 rounded-lg shadow-sm">
-                    <div className="bg-slate-100 rounded h-16 w-16 flex items-center justify-center shrink-0 overflow-hidden border border-slate-200">
-                      <img src={item.image} alt={item.name} className="w-full h-full object-cover" />
-                    </div>
-                    <div className="flex-1">
-                      <h4 className="font-bold text-slate-900 leading-tight">{item.name}</h4>
-                      <p className="text-xs text-slate-500 mb-2">{item.size} • {item.purity} Purity</p>
-                      <div className="flex justify-between items-center">
-                        <span className="font-bold text-blue-700">${item.price.toFixed(2)}</span>
-                        <button onClick={() => removeFromCart(index)} className="text-xs text-red-500 hover:text-red-700 font-medium">
-                          Remove
-                        </button>
-                      </div>
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            )
-          )}
-
-          {/* STEP 2: SHIPPING DETAILS */}
-          {checkoutStep === 'shipping' && (
-            <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-semibold text-slate-600 mb-1">First Name</label>
-                  <div className="relative">
-                    <User size={16} className="absolute left-3 top-3 text-slate-400" />
-                    <input type="text" name="firstName" value={shippingDetails.firstName} onChange={handleShippingChange} autoComplete="given-name" className="w-full pl-9 pr-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm outline-none" placeholder="John" />
-                  </div>
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold text-slate-600 mb-1">Last Name</label>
-                  <input type="text" name="lastName" value={shippingDetails.lastName} onChange={handleShippingChange} autoComplete="family-name" className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm outline-none" placeholder="Doe" />
-                </div>
-              </div>
-              <div>
-                <label className="block text-xs font-semibold text-slate-600 mb-1">Email</label>
-                <div className="relative">
-                  <Mail size={16} className="absolute left-3 top-3 text-slate-400" />
-                  <input 
-                    type="email" 
-                    name="email" 
-                    value={shippingDetails.email} 
-                    onChange={handleShippingChange} 
-                    autoComplete="email"
-                    className={`w-full pl-9 pr-3 py-2 border rounded-lg focus:ring-2 outline-none ${shippingDetails.email !== '' && !validateEmail(shippingDetails.email) ? 'border-red-500 focus:ring-red-500 text-red-600' : 'border-slate-300 focus:ring-blue-500'}`} 
-                    placeholder="researcher@lab.com" 
-                  />
-                </div>
-              </div>
-              <div className="relative">
-                <label className="block text-xs font-semibold text-slate-600 mb-1">Shipping Address</label>
-                <input 
-                  type="text" 
-                  name="address" 
-                  value={shippingDetails.address} 
-                  onChange={handleShippingChange} 
-                  onFocus={() => setShowAddressDropdown(true)}
-                  onBlur={() => setTimeout(() => setShowAddressDropdown(false), 200)}
-                  autoComplete="street-address" 
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm outline-none" 
-                  placeholder="Start typing your address..." 
-                />
-                {/* Live Address Autocomplete Dropdown */}
-                {showAddressDropdown && addressSuggestions.length > 0 && (
-                  <ul className="absolute z-50 w-full bg-white border border-slate-200 rounded-lg shadow-2xl max-h-60 overflow-y-auto mt-1 top-full left-0 divide-y divide-slate-100">
-                    {addressSuggestions.map(s => (
-                      <li 
-                        key={s.place_id} 
-                        onClick={() => handleSelectAddress(s)} 
-                        className="p-3 hover:bg-blue-50 cursor-pointer transition-colors"
-                      >
-                        <div className="flex items-start gap-2">
-                          <MapPin size={16} className="text-slate-400 shrink-0 mt-0.5" />
-                          <div className="overflow-hidden">
-                            <p className="text-sm font-bold text-slate-900 truncate">
-                              {s.address.house_number ? `${s.address.house_number} ${s.address.road || ''}` : s.display_name.split(',')[0]}
-                            </p>
-                            <p className="text-xs text-slate-500 truncate">{s.display_name}</p>
-                          </div>
-                        </div>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </div>
-              <div className="grid grid-cols-3 gap-4">
-                <div className="col-span-1">
-                  <label className="block text-xs font-semibold text-slate-600 mb-1">City</label>
-                  <input type="text" name="city" value={shippingDetails.city} onChange={handleShippingChange} autoComplete="address-level2" className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm outline-none" placeholder="City" />
-                </div>
-                <div className="col-span-1">
-                  <label className="block text-xs font-semibold text-slate-600 mb-1">State</label>
-                  <input type="text" name="state" value={shippingDetails.state} onChange={handleShippingChange} autoComplete="address-level1" className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm outline-none" placeholder="CA" />
-                </div>
-                <div className="col-span-1">
-                  <label className="block text-xs font-semibold text-slate-600 mb-1">ZIP</label>
-                  <input 
-                    type="text" 
-                    name="zip" 
-                    value={shippingDetails.zip} 
-                    onChange={handleShippingChange} 
-                    maxLength="5"
-                    autoComplete="postal-code"
-                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 outline-none ${shippingDetails.zip !== '' && !validateZip(shippingDetails.zip) ? 'border-red-500 focus:ring-red-500 text-red-600' : 'border-slate-300 focus:ring-blue-500'}`} 
-                    placeholder="90210" 
-                  />
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* STEP 3: PAYMENT METHOD */}
-          {checkoutStep === 'payment' && (
-            <div className="space-y-6">
-              
-              {/* Saved Cards Selection */}
-              {user && savedCards.length > 0 && (
-                <div>
-                  <label className="block text-xs font-semibold text-slate-600 mb-2">Select Payment Method</label>
-                  <div className="space-y-2">
-                    {savedCards.map(card => (
-                      <label key={card.id} className={`flex items-center gap-3 p-3 border rounded-xl cursor-pointer transition-all ${selectedPaymentMethod === card.id ? 'border-blue-600 bg-blue-50' : 'border-slate-200 hover:border-blue-300'}`}>
-                        <input 
-                          type="radio" 
-                          name="paymentMethod" 
-                          checked={selectedPaymentMethod === card.id} 
-                          onChange={() => setSelectedPaymentMethod(card.id)}
-                          className="text-blue-600"
-                        />
-                        <CreditCard size={20} className={selectedPaymentMethod === card.id ? 'text-blue-600' : 'text-slate-400'} />
-                        <div>
-                          <p className="text-sm font-bold text-slate-900 capitalize">{card.brand} •••• {card.last4}</p>
-                        </div>
-                      </label>
-                    ))}
-                    
-                    <label className={`flex items-center gap-3 p-3 border rounded-xl cursor-pointer transition-all ${selectedPaymentMethod === 'new' ? 'border-blue-600 bg-blue-50' : 'border-slate-200 hover:border-blue-300'}`}>
-                      <input 
-                        type="radio" 
-                        name="paymentMethod" 
-                        checked={selectedPaymentMethod === 'new'} 
-                        onChange={() => setSelectedPaymentMethod('new')}
-                        className="text-blue-600"
-                      />
-                      <Plus size={20} className={selectedPaymentMethod === 'new' ? 'text-blue-600' : 'text-slate-400'} />
-                      <p className="text-sm font-bold text-slate-900">Add New Card</p>
-                    </label>
-                  </div>
-                </div>
-              )}
-
-              {/* New Card Form */}
-              {selectedPaymentMethod === 'new' && (
-                <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 shadow-sm animate-in fade-in slide-in-from-top-2 duration-300">
-                  <div className="flex items-center justify-between mb-4">
-                    <label className="block text-xs font-semibold text-slate-600">Card Information</label>
-                    <div className="flex gap-1">
-                      <div className="w-8 h-5 bg-slate-200 rounded text-[8px] font-bold text-slate-500 flex items-center justify-center">VISA</div>
-                      <div className="w-8 h-5 bg-slate-200 rounded text-[8px] font-bold text-slate-500 flex items-center justify-center">MC</div>
-                    </div>
-                  </div>
-
-                  <div className="relative">
-                    <CreditCard size={16} className="absolute left-3 top-3 text-slate-400" />
-                    <input 
-                      type="text" 
-                      name="number"
-                      value={cardDetails.number}
-                      onChange={handleCardChange}
-                      maxLength="16"
-                      autoComplete="cc-number"
-                      placeholder="Card number" 
-                      className={`w-full pl-9 pr-3 py-2 border-b border-l border-r border-t rounded-t-lg focus:ring-2 outline-none text-sm ${cardDetails.number !== '' && !validateCardNumber(cardDetails.number) ? 'border-red-500 focus:ring-red-500 text-red-600 relative z-10' : 'border-slate-300 focus:ring-blue-500'}`} 
-                    />
-                  </div>
-                  <div className="flex mb-4">
-                    <input 
-                      type="text" 
-                      name="expiry"
-                      value={cardDetails.expiry}
-                      onChange={handleCardChange}
-                      maxLength="5"
-                      autoComplete="cc-exp"
-                      placeholder="MM/YY" 
-                      className={`w-1/2 px-3 py-2 border-b border-l border-r rounded-bl-lg focus:ring-2 outline-none text-sm -mt-px relative z-10 ${cardDetails.expiry !== '' && !validateExpiry(cardDetails.expiry) ? 'border-red-500 focus:ring-red-500 text-red-600' : 'border-slate-300 focus:ring-blue-500'}`} 
-                    />
-                    <input 
-                      type="text" 
-                      name="cvc"
-                      value={cardDetails.cvc}
-                      onChange={handleCardChange}
-                      maxLength="4"
-                      autoComplete="cc-csc"
-                      placeholder="CVC" 
-                      className={`w-1/2 px-3 py-2 border-b border-r rounded-br-lg focus:ring-2 outline-none text-sm -mt-px -ml-px relative z-10 ${cardDetails.cvc !== '' && !validateCvc(cardDetails.cvc) ? 'border-red-500 focus:ring-red-500 text-red-600' : 'border-slate-300 focus:ring-blue-500'}`} 
-                    />
-                  </div>
-                  
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-600 mb-1">Name on card</label>
-                    <input 
-                      type="text" 
-                      name="name"
-                      value={cardDetails.name}
-                      onChange={handleCardChange}
-                      autoComplete="cc-name"
-                      placeholder="Name on card" 
-                      className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm outline-none" 
-                    />
-                  </div>
-
-                  {/* Save Card Option for Logged-in Users */}
-                  {user && (
-                    <label className="flex items-center gap-2 mt-4 cursor-pointer">
-                      <input 
-                        type="checkbox" 
-                        checked={saveCardForFuture}
-                        onChange={(e) => setSaveCardForFuture(e.target.checked)}
-                        className="w-4 h-4 text-blue-600 border-slate-300 rounded focus:ring-blue-500" 
-                      />
-                      <span className="text-xs font-medium text-slate-700">Save this card securely for future orders</span>
-                    </label>
-                  )}
-                </div>
-              )}
-
-              <div className="flex items-center justify-center gap-2 text-xs text-slate-500 mt-6">
-                <Lock size={12} className="text-slate-400" />
-                <span>Payments are secure and encrypted.</span>
-              </div>
-            </div>
-          )}
-
-          {/* STEP 4: SUCCESS / INVOICE */}
-          {checkoutStep === 'success' && (
-            <div className="h-full flex flex-col items-center justify-center text-center px-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
-              <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mb-6">
-                <Check className="text-green-600" size={32} />
-              </div>
-              <h3 className="text-2xl font-bold text-slate-900 mb-2">Payment Successful</h3>
-              <p className="text-sm text-slate-600 mb-6">Your research materials have been reserved. Order <span className="font-mono font-bold text-slate-900">{orderNumber}</span></p>
-              
-              <div className="bg-slate-50 border border-slate-200 rounded-xl p-5 w-full text-left space-y-4">
-                <h4 className="font-bold text-slate-900 border-b border-slate-200 pb-2">Order Summary</h4>
-                
-                <div className="text-sm text-slate-600 space-y-2">
-                  <p>Your card was successfully charged <strong className="text-slate-900">${cartTotal.toFixed(2)}</strong>.</p>
-                  <p>A full receipt and tracking information will be sent to <strong className="text-slate-900">{shippingDetails.email}</strong> once your order ships.</p>
-                </div>
-              </div>
-
-              <button onClick={closeCart} className="w-full bg-slate-900 hover:bg-slate-800 text-white font-bold py-3 px-4 rounded-lg transition-colors mt-8">
-                Return to Catalog
-              </button>
-            </div>
-          )}
-        </div>
-
-        {/* Persistent Footer Actions */}
-        {cart.length > 0 && checkoutStep !== 'success' && (
-          <div className="p-6 border-t border-slate-200 bg-slate-50">
-            <div className="flex justify-between text-lg font-bold text-slate-900 mb-6">
-              <span>Total:</span>
-              <span>${cartTotal.toFixed(2)}</span>
-            </div>
-            
-            {checkoutError && (
-              <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-xs text-red-600 font-medium">
-                {checkoutError}
-              </div>
-            )}
-
-            {checkoutStep === 'cart' && (
-              user ? (
-                <button onClick={() => setCheckoutStep('shipping')} className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 rounded-lg shadow-lg transition-colors flex justify-center items-center gap-2">
-                  Proceed to Checkout <ChevronRight size={18} />
-                </button>
-              ) : (
-                <div className="space-y-3 mt-2">
-                  <p className="text-xs text-red-600 font-bold text-center">You must be logged in to place a research order.</p>
-                  <button 
-                    onClick={() => { closeCart(); setIsAuthModalOpen(true); }}
-                    className="w-full bg-slate-900 hover:bg-slate-800 text-white font-bold py-3 rounded-lg transition-colors"
-                  >
-                    Sign In or Register
-                  </button>
-                </div>
-              )
-            )}
-            
-            {checkoutStep === 'shipping' && (
-              <div className="flex gap-2">
-                <button onClick={() => setCheckoutStep('cart')} className="px-4 py-4 rounded-lg font-bold text-slate-600 hover:bg-slate-200 transition-colors">
-                  Back
-                </button>
-                <button onClick={() => setCheckoutStep('payment')} disabled={!isShippingValid} className={`flex-1 font-bold py-4 rounded-lg shadow-lg transition-colors flex justify-center items-center gap-2 ${isShippingValid ? 'bg-blue-600 hover:bg-blue-700 text-white' : 'bg-slate-300 text-slate-500 cursor-not-allowed'}`}>
-                  Continue to Payment <ChevronRight size={18} />
-                </button>
-              </div>
-            )}
-            
-            {checkoutStep === 'payment' && (
-              <div className="flex gap-2">
-                <button onClick={() => setCheckoutStep('shipping')} disabled={isProcessing} className="px-4 py-4 rounded-lg font-bold text-slate-600 hover:bg-slate-200 transition-colors disabled:opacity-50">
-                  Back
-                </button>
-                <button 
-                  onClick={handlePlaceOrder} 
-                  disabled={isProcessing || !isPaymentValid}
-                  className={`flex-1 ${isProcessing || !isPaymentValid ? 'bg-slate-400 cursor-not-allowed' : 'bg-green-600 hover:bg-green-700'} text-white font-bold py-4 rounded-lg shadow-lg transition-colors flex justify-center items-center gap-2`}
-                >
-                  {isProcessing ? 'Processing...' : `Pay $${cartTotal.toFixed(2)}`} {!isProcessing && <Lock size={16} />}
-                </button>
-              </div>
-            )}
-
-            {checkoutStep === 'cart' && user && (
-              <p className="text-xs text-slate-500 text-center mt-4">
-                By checking out, you reaffirm that these items are for research purposes only.
-              </p>
-            )}
+    <footer className="bg-slate-900 text-slate-400 py-12 md:py-16 mt-auto border-t-8 border-red-600">
+      <div className="container mx-auto max-w-7xl px-4 grid md:grid-cols-4 gap-8">
+        <div className="md:col-span-2">
+          <div className="flex items-center gap-2 text-white mb-6">
+            <FlaskConical size={24} />
+            <span className="text-lg font-bold">HelixPeptides</span>
           </div>
-        )}
+          <h4 className="text-white font-bold mb-4 uppercase tracking-wider text-sm flex items-center gap-2">
+            <AlertTriangle size={16} className="text-red-500" /> Compliance Notice
+          </h4>
+          <p className="text-xs leading-relaxed mb-4 text-slate-300">
+            The products offered by HelixPeptides are intended solely for laboratory research and in-vitro analytical testing. They are explicitly <strong>NOT FOR HUMAN OR ANIMAL CONSUMPTION</strong>, administration, diagnostic, or therapeutic use.
+          </p>
+          <p className="text-xs leading-relaxed text-slate-300">
+            These chemicals are not FDA-approved drugs. Purchaser represents and warrants that they are a qualified researcher and will utilize these products strictly in adherence with all local, state, and federal laws. HelixPeptides reserves the right to cancel any order if there is suspicion of intended bodily administration.
+          </p>
+        </div>
+        
+        <div>
+          <h4 className="text-white font-bold mb-4">Quick Links</h4>
+          <ul className="space-y-2 text-sm">
+            <li><button onClick={() => setCurrentPage('catalog')} className="hover:text-white transition-colors">Catalog</button></li>
+            <li><button onClick={() => setCurrentPage('quality')} className="hover:text-white transition-colors">Quality Control</button></li>
+            <li><button onClick={() => setCurrentPage('safety')} className="hover:text-white transition-colors">Safety Data Sheets</button></li>
+            <li><button onClick={() => setCurrentPage('contact')} className="hover:text-white transition-colors">Contact</button></li>
+          </ul>
+        </div>
+
+        <div>
+          <h4 className="text-white font-bold mb-4">Contact Lab</h4>
+          <ul className="space-y-2 text-sm">
+            <li>support@helixpeptides.test</li>
+            <li>(555) 123-4567</li>
+            <li className="mt-4 pt-4 border-t border-slate-700">
+              Operating Hours:<br/>Mon-Fri, 9am - 5pm EST
+            </li>
+          </ul>
+        </div>
       </div>
-    </>
+      <div className="container mx-auto px-4 mt-12 pt-8 border-t border-slate-800 text-xs text-center">
+        &copy; {new Date().getFullYear()} HelixPeptides. All rights reserved. For Research Use Only.
+      </div>
+    </footer>
   );
 }
 
-// --- Main App Component ---
 export default function App() {
   const [isAgeGated, setIsAgeGated] = useState(true);
   const [cart, setCart] = useState([]);
@@ -1540,12 +1167,9 @@ export default function App() {
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [currentPage, setCurrentPage] = useState('catalog');
   const [previewSDSProduct, setPreviewSDSProduct] = useState(null);
-  
-  // Auth State
   const [user, setUser] = useState(null);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
 
-  // Monitor Authentication
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
       setUser(currentUser);
@@ -1553,7 +1177,6 @@ export default function App() {
     return () => unsubscribe();
   }, []);
 
-  // Scroll to top when changing pages
   useEffect(() => {
     window.scrollTo(0, 0);
   }, [currentPage]);
@@ -1566,7 +1189,6 @@ export default function App() {
 
   const handleDownloadSDS = (product) => {
     const sdsContent = `SAFETY DATA SHEET\n\nProduct: ${product.name}\nCAS: ${product.cas}\nMolecular Weight: ${product.mw}\n\n1. HAZARDS IDENTIFICATION\nNot a hazardous substance or mixture according to the Globally Harmonized System (GHS).\n\n2. FIRST AID MEASURES\nIf inhaled, move person to fresh air. If not breathing, give artificial respiration.\n\nFOR RESEARCH USE ONLY.`;
-    
     const blob = new Blob([sdsContent], { type: 'text/plain' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
@@ -1584,53 +1206,17 @@ export default function App() {
       <AuthModal isOpen={isAuthModalOpen} setIsOpen={setIsAuthModalOpen} />
       <DisclaimerBanner />
       
-      <Navbar 
-        currentPage={currentPage} 
-        setCurrentPage={setCurrentPage} 
-        cartCount={cart.length} 
-        setIsCartOpen={setIsCartOpen} 
-        user={user}
-        setIsAuthModalOpen={setIsAuthModalOpen}
-      />
+      <Navbar currentPage={currentPage} setCurrentPage={setCurrentPage} cartCount={cart.length} setIsCartOpen={setIsCartOpen} user={user} setIsAuthModalOpen={setIsAuthModalOpen} />
 
-      {/* Main Content Area Routing */}
-      {currentPage === 'catalog' && (
-        <CatalogPage 
-          products={products} 
-          setSelectedProduct={setSelectedProduct} 
-          addToCart={addToCart} 
-          setCurrentPage={setCurrentPage} 
-        />
-      )}
+      {currentPage === 'catalog' && <CatalogPage products={products} setSelectedProduct={setSelectedProduct} addToCart={addToCart} setCurrentPage={setCurrentPage} />}
       {currentPage === 'quality' && <QualityControlPage />}
-      {currentPage === 'safety' && (
-        <SafetyDataPage 
-          products={products} 
-          setPreviewSDSProduct={setPreviewSDSProduct} 
-          handleDownloadSDS={handleDownloadSDS} 
-        />
-      )}
+      {currentPage === 'safety' && <SafetyDataPage products={products} setPreviewSDSProduct={setPreviewSDSProduct} handleDownloadSDS={handleDownloadSDS} />}
       {currentPage === 'contact' && <ContactPage />}
       {currentPage === 'account' && <AccountPage user={user} setCurrentPage={setCurrentPage} />}
 
-      <ProductModal 
-        selectedProduct={selectedProduct} 
-        setSelectedProduct={setSelectedProduct} 
-        addToCart={addToCart} 
-      />
-      <SDSPreviewModal 
-        previewSDSProduct={previewSDSProduct} 
-        setPreviewSDSProduct={setPreviewSDSProduct} 
-        handleDownloadSDS={handleDownloadSDS} 
-      />
-      <CartDrawer 
-        isCartOpen={isCartOpen} 
-        setIsCartOpen={setIsCartOpen} 
-        cart={cart} 
-        setCart={setCart} 
-        user={user}
-        setIsAuthModalOpen={setIsAuthModalOpen}
-      />
+      <ProductModal selectedProduct={selectedProduct} setSelectedProduct={setSelectedProduct} addToCart={addToCart} />
+      <SDSPreviewModal previewSDSProduct={previewSDSProduct} setPreviewSDSProduct={setPreviewSDSProduct} handleDownloadSDS={handleDownloadSDS} />
+      <CartDrawer isCartOpen={isCartOpen} setIsCartOpen={setIsCartOpen} cart={cart} setCart={setCart} user={user} setIsAuthModalOpen={setIsAuthModalOpen} />
       
       <Footer setCurrentPage={setCurrentPage} />
     </div>
