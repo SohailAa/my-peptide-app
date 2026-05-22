@@ -55,7 +55,7 @@ const products = [
   { 
     id: 1, 
     name: "BPC-157", 
-    stripePriceId: "price_mock_157", 
+    stripePriceId: "price_1TZghBBjpkwm17uLiME9wDR2", 
     sequence: "L-Val-L-Pro-L-Pro-L-Asp-L-Pro-L-Ala-L-Asp-L-Pro-L-Ala-L-Asp-L-Glu-L-Leu-L-Gln-L-Cys-L-Cys-L-Ser", 
     cas: "137525-51-0", 
     mw: "1419.5 g/mol",
