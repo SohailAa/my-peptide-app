@@ -649,7 +649,7 @@ function CartDrawer({ isCartOpen, setIsCartOpen, cart, setCart, user, setIsAuthM
       // 2. Add document to the specific checkout_sessions collection for this user
       // The Stripe Extension is configured to listen to this exact path!
       const checkoutSessionRef = await addDoc(
-        collection(db, "users", user.uid, "checkout_sessions"), 
+        collection(db, "customers", user.uid, "checkout_sessions"), 
         {
           mode: 'payment',
           line_items: line_items,
