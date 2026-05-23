@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { initializeApp } from 'firebase/app';
-import { getFirestore, collection, addDoc, getDocs, onSnapshot, setDoc, doc } from 'firebase/firestore';
+import { getFirestore, collection, addDoc, getDocs, onSnapshot, serverTimestamp } from 'firebase/firestore';
 import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, onAuthStateChanged, signOut } from 'firebase/auth';
 
 // --- Firebase Configuration ---
@@ -49,7 +49,6 @@ const Phone = (p) => <IconBase {...p}><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.7
 const Eye = (p) => <IconBase {...p}><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></IconBase>;
 const UserCircle = (p) => <IconBase {...p}><circle cx="12" cy="8" r="5"/><path d="M20 21a8 8 0 0 0-16 0"/></IconBase>;
 const LogOut = (p) => <IconBase {...p}><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></IconBase>;
-const FileSignature = (p) => <IconBase {...p}><path d="M20 19.5b-2-3-2-3-2 3"/><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><path d="M8 13h2"/><path d="M8 17h2"/></IconBase>;
 
 // --- Mock Data: Research Peptides ---
 const products = [
@@ -95,12 +94,6 @@ const products = [
     description: "Copper-binding tripeptide widely used in molecular biology and cellular matrix research. Characteristic blue lyophilized powder.",
     storage: "Store at 4°C, protected from light"
   }
-];
-
-const mockCOAs = [
-  { id: "COA-24-0891", product: "BPC-157", batch: "HX-BPC-882", date: "2024-02-15", purity: "99.4%" },
-  { id: "COA-24-0902", product: "Semaglutide", batch: "HX-SEM-104", date: "2024-03-01", purity: "99.6%" },
-  { id: "COA-24-0915", product: "GHK-Cu", batch: "HX-GHK-339", date: "2024-03-10", purity: "99.8%" },
 ];
 
 // --- Components ---
@@ -237,7 +230,7 @@ function CatalogPage({ products, setSelectedProduct, addToCart, setCurrentPage }
   );
 }
 
-function QualityControlPage({ setPreviewCOA, handleDownloadCOA }) {
+function QualityControlPage() {
   return (
     <div className="container mx-auto max-w-5xl px-4 py-16 animate-in fade-in slide-in-from-bottom-4 duration-500">
       <div className="flex items-center gap-4 mb-8">
@@ -278,63 +271,14 @@ function QualityControlPage({ setPreviewCOA, handleDownloadCOA }) {
         </section>
 
         <section className="bg-white p-8 rounded-xl border border-slate-200 shadow-sm">
-          <div className="flex flex-col md:flex-row md:items-center justify-between mb-6 gap-4">
-            <div>
-              <h2 className="text-2xl font-bold text-slate-900">Certificates of Analysis (COA)</h2>
-              <p className="text-slate-600 mt-1">Recent batch testing results from our ISO-accredited partner laboratory.</p>
-            </div>
-          </div>
-          
-          <div className="overflow-x-auto border border-slate-200 rounded-lg">
-            <table className="w-full text-left border-collapse">
-              <thead>
-                <tr className="bg-slate-50 border-b border-slate-200 text-slate-600 text-sm">
-                  <th className="p-4 font-semibold">Report ID</th>
-                  <th className="p-4 font-semibold">Compound</th>
-                  <th className="p-4 font-semibold">Batch No.</th>
-                  <th className="p-4 font-semibold">Tested Purity</th>
-                  <th className="p-4 font-semibold">Date</th>
-                  <th className="p-4 font-semibold text-right">Action</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {mockCOAs.map((coa) => (
-                  <tr key={coa.id} className="hover:bg-slate-50 transition-colors">
-                    <td className="p-4 text-sm font-mono text-slate-500">{coa.id}</td>
-                    <td className="p-4 font-medium text-slate-900">{coa.product}</td>
-                    <td className="p-4 text-sm font-mono text-slate-600">{coa.batch}</td>
-                    <td className="p-4">
-                      <span className="bg-green-100 text-green-800 text-xs font-bold px-2 py-1 rounded">
-                        {coa.purity}
-                      </span>
-                    </td>
-                    <td className="p-4 text-sm text-slate-500">{coa.date}</td>
-                    <td className="p-4 text-right">
-                      <div className="flex justify-end gap-3">
-                        <button 
-                          onClick={() => setPreviewCOA(coa)}
-                          className="inline-flex items-center gap-1 text-sm font-medium text-slate-600 hover:text-slate-900 transition-colors"
-                        >
-                          <Eye size={16} /> View
-                        </button>
-                        <button 
-                          onClick={() => handleDownloadCOA(coa)}
-                          className="inline-flex items-center gap-1 text-sm font-medium text-blue-600 hover:text-blue-800 transition-colors"
-                        >
-                          <Download size={16} /> PDF
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-          
-          <div className="mt-6 bg-blue-50 border border-blue-200 rounded-lg p-4 flex items-start gap-4">
+          <h2 className="text-2xl font-bold text-slate-900 mb-4 border-b border-slate-100 pb-4">Certificates of Analysis (COA)</h2>
+          <p className="text-slate-600 leading-relaxed mb-4">
+            A comprehensive COA is provided with every order upon request. This document outlines the batch-specific data, verifying the structural integrity and purity of the peptide you receive.
+          </p>
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 flex items-start gap-4">
             <Info className="text-blue-600 shrink-0 mt-1" size={20} />
             <p className="text-sm text-blue-900">
-              If you require a COA for an older batch number not listed above, please contact support with your order details and the lot number found on your vial.
+              To request a COA for a specific batch number, please contact our support team with your order number and the lot number found on the vial.
             </p>
           </div>
         </section>
@@ -684,6 +628,7 @@ function CartDrawer({ isCartOpen, setIsCartOpen, cart, setCart, user, setIsAuthM
     }, 300);
   };
 
+  // --- NEW: Firebase Stripe Extension Checkout Logic ---
   const handleCheckoutRedirect = async () => {
     setCheckoutError(null);
     setIsProcessing(true);
@@ -695,17 +640,14 @@ function CartDrawer({ isCartOpen, setIsCartOpen, cart, setCart, user, setIsAuthM
     }
 
     try {
-      const customerRef = doc(db, "customers", user.uid);
-      await setDoc(customerRef, {
-        email: user.email,
-        name: `${shippingDetails.firstName} ${shippingDetails.lastName}`
-      }, { merge: true });
-
+      // 1. Map your cart items to Stripe line_items format
       const line_items = cart.map(item => ({
-        price: item.stripePriceId, 
+        price: item.stripePriceId, // This MUST match a real price ID in your Stripe Dashboard
         quantity: 1
       }));
 
+      // 2. Add document to the specific checkout_sessions collection for this user
+      // The Stripe Extension is configured to listen to this exact path!
       const checkoutSessionRef = await addDoc(
         collection(db, "customers", user.uid, "checkout_sessions"), 
         {
@@ -720,27 +662,25 @@ function CartDrawer({ isCartOpen, setIsCartOpen, cart, setCart, user, setIsAuthM
         }
       );
 
+      // 3. Listen for the extension to update the document with the Stripe URL
       onSnapshot(checkoutSessionRef, (snap) => {
         const data = snap.data();
         
+        // If the extension encounters an error (e.g. invalid Price ID)
         if (data?.error) {
-          console.error("Stripe Extension Error:", data.error);
           setCheckoutError(`Stripe Error: ${data.error.message}`);
           setIsProcessing(false);
         }
         
+        // If the extension successfully generated the secure Stripe URL
         if (data?.url) {
-          window.location.assign(data.url); 
+          window.location.assign(data.url); // Redirects the browser to Stripe Hosted Checkout
         }
-      }, (err) => {
-         console.error("Listener Error:", err);
-         setCheckoutError("Lost connection to secure payment server.");
-         setIsProcessing(false);
       });
 
     } catch (error) {
       console.error("Firebase connection error: ", error);
-      setCheckoutError(error.message || "Could not initialize Stripe Checkout.");
+      setCheckoutError("Could not initialize Stripe Checkout. Check console.");
       setIsProcessing(false);
     }
   };
@@ -921,6 +861,9 @@ function CartDrawer({ isCartOpen, setIsCartOpen, cart, setCart, user, setIsAuthM
                 <button onClick={() => setCheckoutStep('cart')} className="px-4 py-4 rounded-lg font-bold text-slate-600 hover:bg-slate-200 transition-colors">
                   Back
                 </button>
+                {/* This button now triggers the secure redirect to Stripe.
+                  The credit card inputs are handled securely on Stripe's end.
+                */}
                 <button 
                   onClick={handleCheckoutRedirect} 
                   disabled={!isShippingValid || isProcessing} 
@@ -1169,155 +1112,6 @@ function SDSPreviewModal({ previewSDSProduct, setPreviewSDSProduct, handleDownlo
   );
 }
 
-function COAPreviewModal({ previewCOA, setPreviewCOA, handleDownloadCOA }) {
-  useEffect(() => {
-    if (previewCOA) document.body.style.overflow = 'hidden';
-    else document.body.style.overflow = 'unset';
-    return () => { document.body.style.overflow = 'unset'; }
-  }, [previewCOA]);
-
-  if (!previewCOA) return null;
-  
-  return (
-    <div className="fixed inset-0 bg-slate-900/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm" onClick={() => setPreviewCOA(null)}>
-      <div className="bg-white rounded-xl shadow-2xl max-w-4xl w-full h-[90vh] flex flex-col overflow-hidden animate-in fade-in zoom-in duration-300" onClick={e => e.stopPropagation()}>
-        <div className="flex justify-between items-center p-5 border-b border-slate-200 bg-slate-50">
-          <h2 className="text-xl font-bold text-slate-900 flex items-center gap-2">
-            <FileSignature size={20} className="text-slate-500" /> 
-            Certificate of Analysis: {previewCOA.product}
-          </h2>
-          <button onClick={() => setPreviewCOA(null)} className="text-slate-400 hover:text-slate-600 transition-colors">
-            <X size={24} />
-          </button>
-        </div>
-        
-        <div className="flex-1 overflow-y-auto bg-slate-200 p-4 md:p-8">
-          <div className="bg-white max-w-3xl mx-auto min-h-full p-8 md:p-12 shadow-lg font-sans text-slate-800 border-t-8 border-blue-600">
-            
-            {/* COA Header */}
-            <div className="flex justify-between items-start border-b-2 border-slate-800 pb-6 mb-8">
-              <div>
-                <div className="flex items-center gap-2 text-blue-600 mb-2">
-                  <FlaskConical size={28} />
-                  <span className="text-2xl font-black tracking-tight">HelixPeptides<span className="text-slate-400 text-sm ml-2 font-medium tracking-normal">Analytical Labs</span></span>
-                </div>
-                <p className="text-xs text-slate-500">123 Science Boulevard, San Diego, CA 92121</p>
-              </div>
-              <div className="text-right">
-                <h1 className="text-xl font-black uppercase tracking-widest text-slate-900 mb-1">Certificate of Analysis</h1>
-                <p className="text-sm font-mono text-slate-600">Report ID: {previewCOA.id}</p>
-                <p className="text-sm text-slate-500">Date of Report: {previewCOA.date}</p>
-              </div>
-            </div>
-
-            {/* Batch Info Grid */}
-            <div className="grid grid-cols-2 gap-4 mb-8 bg-slate-50 p-6 rounded-lg border border-slate-200">
-              <div>
-                <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Product Name</p>
-                <p className="text-lg font-bold text-slate-900">{previewCOA.product}</p>
-              </div>
-              <div>
-                <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Batch Number</p>
-                <p className="text-lg font-mono font-bold text-slate-900">{previewCOA.batch}</p>
-              </div>
-              <div>
-                <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Appearance</p>
-                <p className="text-sm text-slate-700">White lyophilized powder</p>
-              </div>
-              <div>
-                <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Storage</p>
-                <p className="text-sm text-slate-700">Desiccated at -20°C</p>
-              </div>
-            </div>
-
-            {/* Test Results Table */}
-            <div className="mb-10">
-              <h3 className="text-lg font-bold text-slate-900 mb-4 border-b border-slate-200 pb-2">Analytical Results</h3>
-              <table className="w-full text-left text-sm border border-slate-200">
-                <thead className="bg-slate-100">
-                  <tr>
-                    <th className="p-3 font-semibold border-b border-r border-slate-200">Test Parameter</th>
-                    <th className="p-3 font-semibold border-b border-r border-slate-200">Methodology</th>
-                    <th className="p-3 font-semibold border-b border-r border-slate-200">Specification</th>
-                    <th className="p-3 font-semibold border-b border-slate-200">Result</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr>
-                    <td className="p-3 border-b border-r border-slate-200 font-medium">Purity</td>
-                    <td className="p-3 border-b border-r border-slate-200">RP-HPLC</td>
-                    <td className="p-3 border-b border-r border-slate-200">&ge; 99.0%</td>
-                    <td className="p-3 border-b border-slate-200 font-bold text-green-700">{previewCOA.purity}</td>
-                  </tr>
-                  <tr>
-                    <td className="p-3 border-b border-r border-slate-200 font-medium">Molecular Weight</td>
-                    <td className="p-3 border-b border-r border-slate-200">ESI-MS</td>
-                    <td className="p-3 border-b border-r border-slate-200">Conforms to structure</td>
-                    <td className="p-3 border-b border-slate-200">Conforms</td>
-                  </tr>
-                  <tr>
-                    <td className="p-3 border-b border-r border-slate-200 font-medium">Peptide Content</td>
-                    <td className="p-3 border-b border-r border-slate-200">Elemental Analysis</td>
-                    <td className="p-3 border-b border-r border-slate-200">&ge; 80.0%</td>
-                    <td className="p-3 border-b border-slate-200">84.2%</td>
-                  </tr>
-                  <tr>
-                    <td className="p-3 border-r border-slate-200 font-medium">Solubility</td>
-                    <td className="p-3 border-r border-slate-200">Visual inspection</td>
-                    <td className="p-3 border-r border-slate-200">Clear, colorless solution in water</td>
-                    <td className="p-3">Conforms</td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-
-            {/* Fake HPLC Graph Placeholder */}
-            <div className="mb-10">
-              <h3 className="text-sm font-bold text-slate-500 uppercase tracking-wider mb-3">Chromatogram (HPLC)</h3>
-              <div className="w-full h-48 bg-slate-50 border border-slate-200 rounded flex items-end p-4 relative overflow-hidden">
-                <div className="absolute inset-0 grid grid-cols-12 grid-rows-6 opacity-10">
-                   {[...Array(72)].map((_, i) => <div key={i} className="border-r border-b border-slate-900"></div>)}
-                </div>
-                {/* Simulated peak line */}
-                <svg className="absolute bottom-0 left-0 w-full h-full" preserveAspectRatio="none" viewBox="0 0 100 100">
-                  <polyline points="0,95 20,95 40,94 45,90 48,10 50,5 52,10 55,90 60,94 80,95 100,95" fill="none" stroke="#2563eb" strokeWidth="1.5" strokeLinejoin="round"/>
-                </svg>
-                <div className="absolute bottom-2 right-4 text-[10px] font-mono text-slate-400">Retention Time: 12.4 min</div>
-              </div>
-            </div>
-
-            {/* Signature Area */}
-            <div className="flex justify-end pt-8 mt-8 border-t border-slate-200">
-              <div className="text-center w-64">
-                <div className="font-mono text-2xl text-blue-800 mb-2 border-b border-slate-400 pb-2 px-4 italic" style={{ fontFamily: "'Brush Script MT', cursive" }}>Dr. E. Vance</div>
-                <p className="font-bold text-slate-900 text-sm">Dr. Elizabeth Vance</p>
-                <p className="text-xs text-slate-500">Director of Quality Assurance</p>
-              </div>
-            </div>
-
-            <p className="text-[10px] text-center text-slate-400 mt-12 uppercase tracking-widest">For Research Use Only. Not for Human Consumption.</p>
-          </div>
-        </div>
-
-        <div className="p-5 border-t border-slate-200 bg-white flex justify-end gap-3">
-          <button 
-            onClick={() => setPreviewCOA(null)} 
-            className="px-5 py-2.5 rounded-lg font-medium text-slate-600 hover:bg-slate-100 transition-colors"
-          >
-            Close
-          </button>
-          <button 
-            onClick={() => handleDownloadCOA(previewCOA)}
-            className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg shadow-md transition-colors flex items-center gap-2"
-          >
-            <Download size={18} /> Download Full Report
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 function Footer({ setCurrentPage }) {
   return (
     <footer className="bg-slate-900 text-slate-400 py-12 md:py-16 mt-auto border-t-8 border-red-600">
@@ -1373,7 +1167,6 @@ export default function App() {
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [currentPage, setCurrentPage] = useState('catalog');
   const [previewSDSProduct, setPreviewSDSProduct] = useState(null);
-  const [previewCOA, setPreviewCOA] = useState(null);
   const [user, setUser] = useState(null);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
 
@@ -1407,19 +1200,6 @@ export default function App() {
     URL.revokeObjectURL(url);
   };
 
-  const handleDownloadCOA = (coa) => {
-    const coaContent = `CERTIFICATE OF ANALYSIS\n\nReport ID: ${coa.id}\nDate: ${coa.date}\nProduct: ${coa.product}\nBatch Number: ${coa.batch}\n\nTEST RESULTS:\nAppearance: White lyophilized powder (Conforms)\nPurity (HPLC): ${coa.purity}\nMolecular Weight (ESI-MS): Conforms to structure\n\nAuthorized by: Dr. Elizabeth Vance, QA Director\n\nFOR RESEARCH USE ONLY.`;
-    const blob = new Blob([coaContent], { type: 'text/plain' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `${coa.id}_${coa.product.replace(/\s+/g, '_')}_COA.txt`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
-  };
-
   return (
     <div className="min-h-screen bg-white font-sans text-slate-900 selection:bg-blue-200 flex flex-col">
       <ResearcherGateModal isAgeGated={isAgeGated} setIsAgeGated={setIsAgeGated} />
@@ -1429,14 +1209,13 @@ export default function App() {
       <Navbar currentPage={currentPage} setCurrentPage={setCurrentPage} cartCount={cart.length} setIsCartOpen={setIsCartOpen} user={user} setIsAuthModalOpen={setIsAuthModalOpen} />
 
       {currentPage === 'catalog' && <CatalogPage products={products} setSelectedProduct={setSelectedProduct} addToCart={addToCart} setCurrentPage={setCurrentPage} />}
-      {currentPage === 'quality' && <QualityControlPage setPreviewCOA={setPreviewCOA} handleDownloadCOA={handleDownloadCOA} />}
+      {currentPage === 'quality' && <QualityControlPage />}
       {currentPage === 'safety' && <SafetyDataPage products={products} setPreviewSDSProduct={setPreviewSDSProduct} handleDownloadSDS={handleDownloadSDS} />}
       {currentPage === 'contact' && <ContactPage />}
       {currentPage === 'account' && <AccountPage user={user} setCurrentPage={setCurrentPage} />}
 
       <ProductModal selectedProduct={selectedProduct} setSelectedProduct={setSelectedProduct} addToCart={addToCart} />
       <SDSPreviewModal previewSDSProduct={previewSDSProduct} setPreviewSDSProduct={setPreviewSDSProduct} handleDownloadSDS={handleDownloadSDS} />
-      <COAPreviewModal previewCOA={previewCOA} setPreviewCOA={setPreviewCOA} handleDownloadCOA={handleDownloadCOA} />
       <CartDrawer isCartOpen={isCartOpen} setIsCartOpen={setIsCartOpen} cart={cart} setCart={setCart} user={user} setIsAuthModalOpen={setIsAuthModalOpen} />
       
       <Footer setCurrentPage={setCurrentPage} />
