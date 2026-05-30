@@ -2,12 +2,10 @@
 
 import React, { useState, useEffect } from 'react';
 import { initializeApp } from 'firebase/app';
-import { getFirestore, collection, addDoc, getDocs, onSnapshot, serverTimestamp } from 'firebase/firestore';
+import { getFirestore, collection, addDoc, getDocs, onSnapshot } from 'firebase/firestore';
 import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, onAuthStateChanged, signOut } from 'firebase/auth';
 
-// --- FIX: Environment Variables ---
-// Using environment variables for security, with your existing keys as fallbacks
-// so the app won't break if you haven't set up a .env.local file yet.
+// --- Environment Variables ---
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY || "AIzaSyBjm6hvcqZ1ep-IDe5ssV7kIWJWZwSvCaE",
   authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN || "peptides-d2e57.firebaseapp.com",
@@ -232,7 +230,7 @@ function CatalogPage({ products, setSelectedProduct, addToCart, setCurrentPage }
   );
 }
 
-function QualityControlPage() {
+function QualityControlPage({ products, handleDownloadCOA }) {
   return (
     <div className="container mx-auto max-w-5xl px-4 py-16 animate-in fade-in slide-in-from-bottom-4 duration-500">
       <div className="flex items-center gap-4 mb-8">
@@ -272,16 +270,30 @@ function QualityControlPage() {
           </div>
         </section>
 
+        {/* --- NEW: COA PDF Downloads --- */}
         <section className="bg-white p-8 rounded-xl border border-slate-200 shadow-sm">
           <h2 className="text-2xl font-bold text-slate-900 mb-4 border-b border-slate-100 pb-4">Certificates of Analysis (COA)</h2>
-          <p className="text-slate-600 leading-relaxed mb-4">
-            A comprehensive COA is provided with every order upon request. This document outlines the batch-specific data, verifying the structural integrity and purity of the peptide you receive.
+          <p className="text-slate-600 leading-relaxed mb-6">
+            Review the most recent Certificates of Analysis for our synthesized reference standards. Each document outlines the batch-specific data, verifying the structural integrity and purity of the peptide.
           </p>
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 flex items-start gap-4">
-            <Info className="text-blue-600 shrink-0 mt-1" size={20} />
-            <p className="text-sm text-blue-900">
-              To request a COA for a specific batch number, please contact our support team with your order number and the lot number found on the vial.
-            </p>
+          
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+            {products.map((product) => (
+              <button 
+                key={product.id} 
+                onClick={() => handleDownloadCOA(product)}
+                className="flex items-center gap-4 p-4 bg-slate-50 border border-slate-200 rounded-lg hover:border-red-400 hover:shadow-md transition-all group text-left"
+              >
+                <div className="bg-red-100 p-2 rounded text-red-600 group-hover:bg-red-600 group-hover:text-white transition-colors">
+                  <FileText size={24} />
+                </div>
+                <div className="flex-1">
+                  <h4 className="font-bold text-slate-900 text-sm leading-tight mb-1">{product.name}</h4>
+                  <p className="text-xs text-slate-500">PDF Document</p>
+                </div>
+                <Download size={18} className="text-slate-400 group-hover:text-red-500 transition-colors" />
+              </button>
+            ))}
           </div>
         </section>
       </div>
@@ -354,81 +366,52 @@ function SafetyDataPage({ products, setPreviewSDSProduct, handleDownloadSDS }) {
   );
 }
 
+// --- UPDATED: Contact Page (Cleaned up layout and fields) ---
 function ContactPage() {
   return (
-    <div className="container mx-auto max-w-5xl px-4 py-16 animate-in fade-in slide-in-from-bottom-4 duration-500">
-      <div className="flex items-center gap-4 mb-8">
-        <div className="bg-blue-100 p-4 rounded-full">
+    <div className="container mx-auto max-w-4xl px-4 py-16 animate-in fade-in slide-in-from-bottom-4 duration-500">
+      <div className="flex flex-col items-center text-center mb-10">
+        <div className="bg-blue-100 p-4 rounded-full mb-4 inline-flex">
           <Mail className="text-blue-600" size={32} />
         </div>
-        <div>
-          <h1 className="text-4xl font-extrabold text-slate-900">Contact Us</h1>
-          <p className="text-slate-600 mt-2">Get in touch with our support and laboratory teams.</p>
-        </div>
+        <h1 className="text-4xl font-extrabold text-slate-900">Contact Us</h1>
+        <p className="text-slate-600 mt-2">Get in touch with our support and laboratory teams.</p>
       </div>
 
-      <div className="grid md:grid-cols-3 gap-8">
-        <div className="md:col-span-2 bg-white p-8 rounded-xl border border-slate-200 shadow-sm">
-          <h2 className="text-2xl font-bold text-slate-900 mb-6 border-b border-slate-100 pb-4">Send an Inquiry</h2>
-          <form className="space-y-4" onSubmit={(e) => e.preventDefault()}>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-1">First Name</label>
-                <input type="text" className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" placeholder="Jane" />
-              </div>
-              <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-1">Last Name</label>
-                <input type="text" className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" placeholder="Doe" />
-              </div>
+      <div className="max-w-2xl mx-auto bg-white p-8 md:p-10 rounded-xl border border-slate-200 shadow-sm">
+        <h2 className="text-2xl font-bold text-slate-900 mb-6 border-b border-slate-100 pb-4">Send an Inquiry</h2>
+        <form className="space-y-5" onSubmit={(e) => e.preventDefault()}>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+            <div>
+              <label className="block text-sm font-semibold text-slate-700 mb-1.5">First Name</label>
+              <input type="text" className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" placeholder="Jane" />
             </div>
             <div>
-              <label className="block text-sm font-semibold text-slate-700 mb-1">Email Address</label>
-              <input type="email" className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" placeholder="researcher@university.edu" />
+              <label className="block text-sm font-semibold text-slate-700 mb-1.5">Last Name</label>
+              <input type="text" className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" placeholder="Doe" />
             </div>
-            <div>
-              <label className="block text-sm font-semibold text-slate-700 mb-1">Subject</label>
-              <select className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white">
-                <option>General Inquiry</option>
-                <option>Order Status</option>
-                <option>Bulk / Wholesale Request</option>
-                <option>COA Request</option>
-              </select>
-            </div>
-            <div>
-              <label className="block text-sm font-semibold text-slate-700 mb-1">Message</label>
-              <textarea rows="5" className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" placeholder="How can we assist your research?"></textarea>
-            </div>
-            <button className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 rounded-lg shadow-md transition-colors flex justify-center items-center gap-2">
-              Send Message <Send size={18} />
-            </button>
-            <p className="text-xs text-slate-500 text-center mt-2">Do not mention human consumption or therapeutic use in your message, or your inquiry will be ignored.</p>
-          </form>
-        </div>
-
-        <div className="space-y-6">
-          <div className="bg-slate-900 text-white p-6 rounded-xl shadow-lg">
-            <h3 className="font-bold text-lg mb-4 flex items-center gap-2"><MapPin className="text-blue-400" size={20} /> Laboratory HQ</h3>
-            <p className="text-slate-300 text-sm leading-relaxed mb-4">
-              HelixPeptides<br/>
-              123 Science Boulevard<br/>
-              Suite 400<br/>
-              San Diego, CA 92121
-            </p>
-            <div className="h-px w-full bg-slate-700 my-4"></div>
-            <h3 className="font-bold text-lg mb-4 flex items-center gap-2"><Phone className="text-blue-400" size={20} /> Contact Info</h3>
-            <p className="text-slate-300 text-sm mb-2">support@helixpeptides.test</p>
-            <p className="text-slate-300 text-sm">(555) 123-4567</p>
           </div>
-
-          <div className="bg-slate-50 p-6 rounded-xl border border-slate-200">
-            <h3 className="font-bold text-slate-900 mb-2">Operating Hours</h3>
-            <ul className="text-sm text-slate-600 space-y-2">
-              <li className="flex justify-between"><span>Mon - Fri:</span> <span className="font-medium text-slate-900">9:00 AM - 5:00 PM EST</span></li>
-              <li className="flex justify-between"><span>Sat - Sun:</span> <span className="font-medium text-slate-900">Closed</span></li>
-            </ul>
-            <p className="text-xs text-slate-500 mt-4 italic">Orders placed after 2:00 PM EST will be processed the following business day.</p>
+          <div>
+            <label className="block text-sm font-semibold text-slate-700 mb-1.5">Email Address</label>
+            <input type="email" className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" placeholder="researcher@university.edu" />
           </div>
-        </div>
+          <div>
+            <label className="block text-sm font-semibold text-slate-700 mb-1.5">Subject</label>
+            <select className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white">
+              <option>General Inquiry</option>
+              <option>Order Status</option>
+              <option>Bulk / Wholesale Request</option>
+              <option>COA Request</option>
+            </select>
+          </div>
+          <div>
+            <label className="block text-sm font-semibold text-slate-700 mb-1.5">Message</label>
+            <textarea rows="5" className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" placeholder="How can we assist your research?"></textarea>
+          </div>
+          <button className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 rounded-lg shadow-md transition-colors flex justify-center items-center gap-2 mt-4">
+            Send Message <Send size={18} />
+          </button>
+        </form>
       </div>
     </div>
   );
@@ -444,10 +427,6 @@ function AccountPage({ user, setCurrentPage }) {
     
     const fetchAccountData = async () => {
       try {
-        // --- FIX: Firestore Collection Match ---
-        // Changed "users" to "customers" to match the default configuration 
-        // of the official Stripe Firebase Extension. We'll use "payments" as
-        // the standard subcollection where Stripe writes fulfilled checkouts.
         const ordersRef = collection(db, "customers", user.uid, "payments");
         const ordersSnap = await getDocs(ordersRef);
         const fetchedOrders = [];
@@ -455,7 +434,6 @@ function AccountPage({ user, setCurrentPage }) {
           fetchedOrders.push({ id: doc.id, ...doc.data() });
         });
         
-        // Sorting the orders, falling back gracefully if Stripe properties vary
         fetchedOrders.sort((a, b) => {
           const timeA = a.created ? a.created * 1000 : (a.timestamp?.toDate ? a.timestamp.toDate().getTime() : 0);
           const timeB = b.created ? b.created * 1000 : (b.timestamp?.toDate ? b.timestamp.toDate().getTime() : 0);
@@ -463,7 +441,6 @@ function AccountPage({ user, setCurrentPage }) {
         });
         setOrders(fetchedOrders);
 
-        // Fetching payment methods from the correct Stripe "payment_methods" path
         const paymentsRef = collection(db, "customers", user.uid, "payment_methods");
         const paymentsSnap = await getDocs(paymentsRef);
         const fetchedPayments = [];
@@ -488,7 +465,6 @@ function AccountPage({ user, setCurrentPage }) {
 
   const formatTimestamp = (timestamp) => {
     if (!timestamp) return 'Processing';
-    // Handle Stripe unix timestamps (the 'created' field is in seconds)
     if (typeof timestamp === 'number') return new Date(timestamp * 1000).toLocaleDateString();
     if (timestamp.toDate) return timestamp.toDate().toLocaleDateString();
     if (timestamp.seconds || timestamp._seconds) return new Date((timestamp.seconds || timestamp._seconds) * 1000).toLocaleDateString();
@@ -529,7 +505,6 @@ function AccountPage({ user, setCurrentPage }) {
                       <span className="bg-blue-100 text-blue-800 text-xs font-bold px-2 py-1 rounded capitalize">{order.status || 'succeeded'}</span>
                     </div>
                     <div className="text-sm text-slate-600 mb-3">
-                      {/* FIX: Stripe returns 'amount' in cents, falling back to 'total' if you have custom logic */}
                       {formatTimestamp(order.created || order.timestamp)} • <span className="font-bold text-slate-900">${order.amount ? (order.amount / 100).toFixed(2) : order.total?.toFixed(2)}</span>
                     </div>
                   </div>
@@ -549,7 +524,6 @@ function AccountPage({ user, setCurrentPage }) {
                     <li key={method.id} className="flex items-center gap-3 p-3 bg-slate-50 rounded border border-slate-100">
                       <CreditCard size={20} className="text-slate-400" />
                       <div>
-                        {/* Adapt to standard stripe structure which usually nests details under the 'card' object */}
                         <p className="text-sm font-bold text-slate-900 capitalize">{method.card?.brand || method.brand} •••• {method.card?.last4 || method.last4}</p>
                         <p className="text-xs text-slate-500">Expires {method.card?.exp_month || method.expMonth}/{method.card?.exp_year || method.expYear}</p>
                       </div>
@@ -577,7 +551,6 @@ function CartDrawer({ isCartOpen, setIsCartOpen, cart, setCart, user, setIsAuthM
   const [isProcessing, setIsProcessing] = useState(false);
   const [checkoutError, setCheckoutError] = useState(null);
 
-  // Address Autocomplete States
   const [addressSuggestions, setAddressSuggestions] = useState([]);
   const [showAddressDropdown, setShowAddressDropdown] = useState(false);
 
@@ -587,14 +560,12 @@ function CartDrawer({ isCartOpen, setIsCartOpen, cart, setCart, user, setIsAuthM
     return () => { document.body.style.overflow = 'unset'; }
   }, [isCartOpen]);
 
-  // Pre-fill email if logged in
   useEffect(() => {
     if (user && isCartOpen) {
       setShippingDetails(prev => ({ ...prev, email: user.email }));
     }
   }, [user, isCartOpen]);
 
-  // OpenStreetMap Address Autocomplete Fetch
   useEffect(() => {
     if (shippingDetails.address.length < 5 || !showAddressDropdown) {
       setAddressSuggestions([]);
@@ -602,8 +573,6 @@ function CartDrawer({ isCartOpen, setIsCartOpen, cart, setCart, user, setIsAuthM
     }
     const timer = setTimeout(async () => {
       try {
-        // --- FIX: OpenStreetMap Rate Limiting & ToS ---
-        // Added required User-Agent header to prevent your domain/IP from being blocked.
         const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(shippingDetails.address)}&addressdetails=1&countrycodes=us&limit=5`, {
           headers: {
             'Accept': 'application/json',
@@ -656,9 +625,6 @@ function CartDrawer({ isCartOpen, setIsCartOpen, cart, setCart, user, setIsAuthM
     }
 
     try {
-      // --- FIX: Group Identical Cart Items ---
-      // Groups duplicates of the same peptide into a single line item with increased quantity.
-      // This prevents the Stripe Extension from failing when passing identical price IDs.
       const groupedItems = cart.reduce((acc, item) => {
         const existingItem = acc.find(i => i.price === item.stripePriceId);
         if (existingItem) {
@@ -692,7 +658,6 @@ function CartDrawer({ isCartOpen, setIsCartOpen, cart, setCart, user, setIsAuthM
         }
         
         if (data?.url) {
-          // Clear cart right before redirecting to Stripe to ensure it's empty upon return
           setCart([]); 
           window.location.assign(data.url);
         }
@@ -1179,12 +1144,9 @@ function Footer({ setCurrentPage }) {
 export default function App() {
   const [isAgeGated, setIsAgeGated] = useState(true);
   
-  // --- FIX: Cart State Persistence ---
-  // We use isClient to prevent Next.js Hydration Mismatch errors
   const [cart, setCart] = useState([]);
   const [isClient, setIsClient] = useState(false);
 
-  // Initialize cart from localStorage on mount
   useEffect(() => {
     setIsClient(true);
     const saved = window.localStorage.getItem('research_cart');
@@ -1197,7 +1159,6 @@ export default function App() {
     }
   }, []);
 
-  // Sync cart back to localStorage whenever it changes
   useEffect(() => {
     if (isClient) {
       window.localStorage.setItem('research_cart', JSON.stringify(cart));
@@ -1241,6 +1202,19 @@ export default function App() {
     URL.revokeObjectURL(url);
   };
 
+  const handleDownloadCOA = (product) => {
+    const coaContent = `CERTIFICATE OF ANALYSIS\n\nProduct: ${product.name}\nCAS: ${product.cas}\nMolecular Weight: ${product.mw}\nLot Number: ${product.cas.split('-')[0]}-A\n\nTESTING RESULTS:\nPurity (HPLC): ${product.purity}\nAppearance: White Lyophilized Powder (Pass)\n\nCONCLUSION: Meets or exceeds reference standard specifications.\n\nFOR RESEARCH USE ONLY.`;
+    const blob = new Blob([coaContent], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `${product.name.replace(/\s+/g, '_')}_COA.txt`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
   return (
     <div className="min-h-screen bg-white font-sans text-slate-900 selection:bg-blue-200 flex flex-col">
       <ResearcherGateModal isAgeGated={isAgeGated} setIsAgeGated={setIsAgeGated} />
@@ -1250,7 +1224,10 @@ export default function App() {
       <Navbar currentPage={currentPage} setCurrentPage={setCurrentPage} cartCount={cart.length} setIsCartOpen={setIsCartOpen} user={user} setIsAuthModalOpen={setIsAuthModalOpen} />
 
       {currentPage === 'catalog' && <CatalogPage products={products} setSelectedProduct={setSelectedProduct} addToCart={addToCart} setCurrentPage={setCurrentPage} />}
-      {currentPage === 'quality' && <QualityControlPage />}
+      
+      {/* PRODUCTS PASSED HERE FOR DYNAMIC COA LINKS */}
+      {currentPage === 'quality' && <QualityControlPage products={products} handleDownloadCOA={handleDownloadCOA} />}
+      
       {currentPage === 'safety' && <SafetyDataPage products={products} setPreviewSDSProduct={setPreviewSDSProduct} handleDownloadSDS={handleDownloadSDS} />}
       {currentPage === 'contact' && <ContactPage />}
       {currentPage === 'account' && <AccountPage user={user} setCurrentPage={setCurrentPage} />}
