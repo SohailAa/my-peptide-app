@@ -5,15 +5,17 @@ import { initializeApp } from 'firebase/app';
 import { getFirestore, collection, addDoc, getDocs, onSnapshot, serverTimestamp } from 'firebase/firestore';
 import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, onAuthStateChanged, signOut } from 'firebase/auth';
 
-// --- Firebase Configuration ---
+// --- FIX: Environment Variables ---
+// Using environment variables for security, with your existing keys as fallbacks
+// so the app won't break if you haven't set up a .env.local file yet.
 const firebaseConfig = {
-  apiKey: "AIzaSyBjm6hvcqZ1ep-IDe5ssV7kIWJWZwSvCaE",
-  authDomain: "peptides-d2e57.firebaseapp.com",
-  projectId: "peptides-d2e57",
-  storageBucket: "peptides-d2e57.firebasestorage.app",
-  messagingSenderId: "528632482409",
-  appId: "1:528632482409:web:8274819d815c5be7d970f8",
-  measurementId: "G-GCF6Z7SFLJ"
+  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY || "AIzaSyBjm6hvcqZ1ep-IDe5ssV7kIWJWZwSvCaE",
+  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN || "peptides-d2e57.firebaseapp.com",
+  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || "peptides-d2e57",
+  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET || "peptides-d2e57.firebasestorage.app",
+  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID || "528632482409",
+  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID || "1:528632482409:web:8274819d815c5be7d970f8",
+  measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID || "G-GCF6Z7SFLJ"
 };
 
 const app = initializeApp(firebaseConfig);
@@ -442,20 +444,27 @@ function AccountPage({ user, setCurrentPage }) {
     
     const fetchAccountData = async () => {
       try {
-        const ordersRef = collection(db, "users", user.uid, "orders");
+        // --- FIX: Firestore Collection Match ---
+        // Changed "users" to "customers" to match the default configuration 
+        // of the official Stripe Firebase Extension. We'll use "payments" as
+        // the standard subcollection where Stripe writes fulfilled checkouts.
+        const ordersRef = collection(db, "customers", user.uid, "payments");
         const ordersSnap = await getDocs(ordersRef);
         const fetchedOrders = [];
         ordersSnap.forEach((doc) => {
           fetchedOrders.push({ id: doc.id, ...doc.data() });
         });
+        
+        // Sorting the orders, falling back gracefully if Stripe properties vary
         fetchedOrders.sort((a, b) => {
-          const timeA = a.timestamp?.toDate ? a.timestamp.toDate().getTime() : (a.timestamp?._seconds ? a.timestamp._seconds * 1000 : 0);
-          const timeB = b.timestamp?.toDate ? b.timestamp.toDate().getTime() : (b.timestamp?._seconds ? b.timestamp._seconds * 1000 : 0);
+          const timeA = a.created ? a.created * 1000 : (a.timestamp?.toDate ? a.timestamp.toDate().getTime() : 0);
+          const timeB = b.created ? b.created * 1000 : (b.timestamp?.toDate ? b.timestamp.toDate().getTime() : 0);
           return timeB - timeA;
         });
         setOrders(fetchedOrders);
 
-        const paymentsRef = collection(db, "users", user.uid, "paymentMethods");
+        // Fetching payment methods from the correct Stripe "payment_methods" path
+        const paymentsRef = collection(db, "customers", user.uid, "payment_methods");
         const paymentsSnap = await getDocs(paymentsRef);
         const fetchedPayments = [];
         paymentsSnap.forEach((doc) => {
@@ -479,6 +488,8 @@ function AccountPage({ user, setCurrentPage }) {
 
   const formatTimestamp = (timestamp) => {
     if (!timestamp) return 'Processing';
+    // Handle Stripe unix timestamps (the 'created' field is in seconds)
+    if (typeof timestamp === 'number') return new Date(timestamp * 1000).toLocaleDateString();
     if (timestamp.toDate) return timestamp.toDate().toLocaleDateString();
     if (timestamp.seconds || timestamp._seconds) return new Date((timestamp.seconds || timestamp._seconds) * 1000).toLocaleDateString();
     return 'Processing';
@@ -514,14 +525,12 @@ function AccountPage({ user, setCurrentPage }) {
                 {orders.map((order) => (
                   <div key={order.id} className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
                     <div className="flex justify-between items-center mb-3">
-                      <span className="font-bold font-mono text-slate-900">{order.orderNumber}</span>
-                      <span className="bg-blue-100 text-blue-800 text-xs font-bold px-2 py-1 rounded">{order.status}</span>
+                      <span className="font-bold font-mono text-slate-900">{order.id.slice(0, 14).toUpperCase()}</span>
+                      <span className="bg-blue-100 text-blue-800 text-xs font-bold px-2 py-1 rounded capitalize">{order.status || 'succeeded'}</span>
                     </div>
                     <div className="text-sm text-slate-600 mb-3">
-                      {formatTimestamp(order.timestamp)} • {order.cartItems?.length} Items • <span className="font-bold text-slate-900">${order.total?.toFixed(2)}</span>
-                    </div>
-                    <div className="text-xs text-slate-500">
-                      Shipped to: {order.customerInfo?.address}, {order.customerInfo?.city}
+                      {/* FIX: Stripe returns 'amount' in cents, falling back to 'total' if you have custom logic */}
+                      {formatTimestamp(order.created || order.timestamp)} • <span className="font-bold text-slate-900">${order.amount ? (order.amount / 100).toFixed(2) : order.total?.toFixed(2)}</span>
                     </div>
                   </div>
                 ))}
@@ -540,8 +549,9 @@ function AccountPage({ user, setCurrentPage }) {
                     <li key={method.id} className="flex items-center gap-3 p-3 bg-slate-50 rounded border border-slate-100">
                       <CreditCard size={20} className="text-slate-400" />
                       <div>
-                        <p className="text-sm font-bold text-slate-900 capitalize">{method.brand} •••• {method.last4}</p>
-                        <p className="text-xs text-slate-500">Expires {method.expMonth}/{method.expYear}</p>
+                        {/* Adapt to standard stripe structure which usually nests details under the 'card' object */}
+                        <p className="text-sm font-bold text-slate-900 capitalize">{method.card?.brand || method.brand} •••• {method.card?.last4 || method.last4}</p>
+                        <p className="text-xs text-slate-500">Expires {method.card?.exp_month || method.expMonth}/{method.card?.exp_year || method.expYear}</p>
                       </div>
                     </li>
                   ))}
@@ -592,7 +602,14 @@ function CartDrawer({ isCartOpen, setIsCartOpen, cart, setCart, user, setIsAuthM
     }
     const timer = setTimeout(async () => {
       try {
-        const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(shippingDetails.address)}&addressdetails=1&countrycodes=us&limit=5`);
+        // --- FIX: OpenStreetMap Rate Limiting & ToS ---
+        // Added required User-Agent header to prevent your domain/IP from being blocked.
+        const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(shippingDetails.address)}&addressdetails=1&countrycodes=us&limit=5`, {
+          headers: {
+            'Accept': 'application/json',
+            'User-Agent': 'HelixPeptides/1.0 (support@helixpeptides.test)'
+          }
+        });
         if (res.status === 429) return; 
         const data = await res.json();
         setAddressSuggestions(data);
@@ -628,7 +645,6 @@ function CartDrawer({ isCartOpen, setIsCartOpen, cart, setCart, user, setIsAuthM
     }, 300);
   };
 
-  // --- NEW: Firebase Stripe Extension Checkout Logic ---
   const handleCheckoutRedirect = async () => {
     setCheckoutError(null);
     setIsProcessing(true);
@@ -640,19 +656,24 @@ function CartDrawer({ isCartOpen, setIsCartOpen, cart, setCart, user, setIsAuthM
     }
 
     try {
-      // 1. Map your cart items to Stripe line_items format
-      const line_items = cart.map(item => ({
-        price: item.stripePriceId, // This MUST match a real price ID in your Stripe Dashboard
-        quantity: 1
-      }));
+      // --- FIX: Group Identical Cart Items ---
+      // Groups duplicates of the same peptide into a single line item with increased quantity.
+      // This prevents the Stripe Extension from failing when passing identical price IDs.
+      const groupedItems = cart.reduce((acc, item) => {
+        const existingItem = acc.find(i => i.price === item.stripePriceId);
+        if (existingItem) {
+          existingItem.quantity += 1;
+        } else {
+          acc.push({ price: item.stripePriceId, quantity: 1 });
+        }
+        return acc;
+      }, []);
 
-      // 2. Add document to the specific checkout_sessions collection for this user
-      // The Stripe Extension is configured to listen to this exact path!
       const checkoutSessionRef = await addDoc(
         collection(db, "customers", user.uid, "checkout_sessions"), 
         {
           mode: 'payment',
-          line_items: line_items,
+          line_items: groupedItems,
           success_url: window.location.origin + '?checkout=success',
           cancel_url: window.location.origin + '?checkout=cancel',
           metadata: {
@@ -662,19 +683,18 @@ function CartDrawer({ isCartOpen, setIsCartOpen, cart, setCart, user, setIsAuthM
         }
       );
 
-      // 3. Listen for the extension to update the document with the Stripe URL
       onSnapshot(checkoutSessionRef, (snap) => {
         const data = snap.data();
         
-        // If the extension encounters an error (e.g. invalid Price ID)
         if (data?.error) {
           setCheckoutError(`Stripe Error: ${data.error.message}`);
           setIsProcessing(false);
         }
         
-        // If the extension successfully generated the secure Stripe URL
         if (data?.url) {
-          window.location.assign(data.url); // Redirects the browser to Stripe Hosted Checkout
+          // Clear cart right before redirecting to Stripe to ensure it's empty upon return
+          setCart([]); 
+          window.location.assign(data.url);
         }
       });
 
@@ -694,9 +714,8 @@ function CartDrawer({ isCartOpen, setIsCartOpen, cart, setCart, user, setIsAuthM
     setCart(cart.filter((_, index) => index !== indexToRemove));
   };
 
-  // --- Strict Validation Rules ---
   const validateEmail = (email) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
-  const validateZip = (zip) => /^\d{5}$/.test(zip); // Strict 5 digit ZIP
+  const validateZip = (zip) => /^\d{5}$/.test(zip);
 
   const isShippingValid = 
     shippingDetails.firstName.trim() !== '' &&
@@ -861,9 +880,6 @@ function CartDrawer({ isCartOpen, setIsCartOpen, cart, setCart, user, setIsAuthM
                 <button onClick={() => setCheckoutStep('cart')} className="px-4 py-4 rounded-lg font-bold text-slate-600 hover:bg-slate-200 transition-colors">
                   Back
                 </button>
-                {/* This button now triggers the secure redirect to Stripe.
-                  The credit card inputs are handled securely on Stripe's end.
-                */}
                 <button 
                   onClick={handleCheckoutRedirect} 
                   disabled={!isShippingValid || isProcessing} 
@@ -1162,7 +1178,32 @@ function Footer({ setCurrentPage }) {
 
 export default function App() {
   const [isAgeGated, setIsAgeGated] = useState(true);
+  
+  // --- FIX: Cart State Persistence ---
+  // We use isClient to prevent Next.js Hydration Mismatch errors
   const [cart, setCart] = useState([]);
+  const [isClient, setIsClient] = useState(false);
+
+  // Initialize cart from localStorage on mount
+  useEffect(() => {
+    setIsClient(true);
+    const saved = window.localStorage.getItem('research_cart');
+    if (saved) {
+      try {
+        setCart(JSON.parse(saved));
+      } catch (e) {
+        console.error('Failed to parse cart from local storage');
+      }
+    }
+  }, []);
+
+  // Sync cart back to localStorage whenever it changes
+  useEffect(() => {
+    if (isClient) {
+      window.localStorage.setItem('research_cart', JSON.stringify(cart));
+    }
+  }, [cart, isClient]);
+
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [currentPage, setCurrentPage] = useState('catalog');
