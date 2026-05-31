@@ -230,7 +230,7 @@ function CatalogPage({ products, setSelectedProduct, addToCart, setCurrentPage }
   );
 }
 
-function QualityControlPage({ products, handleDownloadCOA }) {
+function QualityControlPage({ products, handleDownloadPDF }) {
   return (
     <div className="container mx-auto max-w-5xl px-4 py-16 animate-in fade-in slide-in-from-bottom-4 duration-500">
       <div className="flex items-center gap-4 mb-8">
@@ -270,7 +270,6 @@ function QualityControlPage({ products, handleDownloadCOA }) {
           </div>
         </section>
 
-        {/* --- NEW: COA PDF Downloads --- */}
         <section className="bg-white p-8 rounded-xl border border-slate-200 shadow-sm">
           <h2 className="text-2xl font-bold text-slate-900 mb-4 border-b border-slate-100 pb-4">Certificates of Analysis (COA)</h2>
           <p className="text-slate-600 leading-relaxed mb-6">
@@ -281,7 +280,7 @@ function QualityControlPage({ products, handleDownloadCOA }) {
             {products.map((product) => (
               <button 
                 key={product.id} 
-                onClick={() => handleDownloadCOA(product)}
+                onClick={() => handleDownloadPDF(product, 'COA')}
                 className="flex items-center gap-4 p-4 bg-slate-50 border border-slate-200 rounded-lg hover:border-red-400 hover:shadow-md transition-all group text-left"
               >
                 <div className="bg-red-100 p-2 rounded text-red-600 group-hover:bg-red-600 group-hover:text-white transition-colors">
@@ -289,9 +288,9 @@ function QualityControlPage({ products, handleDownloadCOA }) {
                 </div>
                 <div className="flex-1">
                   <h4 className="font-bold text-slate-900 text-sm leading-tight mb-1">{product.name}</h4>
-                  <p className="text-xs text-slate-500">PDF Document</p>
+                  <p className="text-xs text-slate-500">Preview Document PDF</p>
                 </div>
-                <Download size={18} className="text-slate-400 group-hover:text-red-500 transition-colors" />
+                <Eye size={18} className="text-slate-400 group-hover:text-red-500 transition-colors" />
               </button>
             ))}
           </div>
@@ -301,7 +300,7 @@ function QualityControlPage({ products, handleDownloadCOA }) {
   );
 }
 
-function SafetyDataPage({ products, setPreviewSDSProduct, handleDownloadSDS }) {
+function SafetyDataPage({ products, handleDownloadPDF }) {
   return (
     <div className="container mx-auto max-w-6xl px-4 py-16 animate-in fade-in slide-in-from-bottom-4 duration-500">
       <div className="flex items-center gap-4 mb-8">
@@ -332,20 +331,12 @@ function SafetyDataPage({ products, setPreviewSDSProduct, handleDownloadSDS }) {
                   <td className="p-4 text-slate-500 font-mono text-sm">{product.cas}</td>
                   <td className="p-4 text-slate-500 text-sm">Jan 12, 2024</td>
                   <td className="p-4 text-right">
-                    <div className="flex justify-end gap-3">
-                      <button 
-                        onClick={() => setPreviewSDSProduct(product)}
-                        className="inline-flex items-center gap-1 text-sm font-medium text-slate-600 hover:text-slate-900 transition-colors"
-                      >
-                        <Eye size={16} /> Preview
-                      </button>
-                      <button 
-                        onClick={() => handleDownloadSDS(product)}
-                        className="inline-flex items-center gap-1 text-sm font-medium text-blue-600 hover:text-blue-800 transition-colors"
-                      >
-                        <Download size={16} /> Download
-                      </button>
-                    </div>
+                    <button 
+                      onClick={() => handleDownloadPDF(product, 'SDS')}
+                      className="inline-flex items-center gap-1 text-sm font-medium text-blue-600 hover:text-blue-800 transition-colors"
+                    >
+                      <Eye size={16} /> Preview Document PDF
+                    </button>
                   </td>
                 </tr>
               ))}
@@ -366,7 +357,6 @@ function SafetyDataPage({ products, setPreviewSDSProduct, handleDownloadSDS }) {
   );
 }
 
-// --- UPDATED: Contact Page (Cleaned up layout and fields) ---
 function ContactPage() {
   return (
     <div className="container mx-auto max-w-4xl px-4 py-16 animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -1014,85 +1004,6 @@ function ProductModal({ selectedProduct, setSelectedProduct, addToCart }) {
   );
 }
 
-function SDSPreviewModal({ previewSDSProduct, setPreviewSDSProduct, handleDownloadSDS }) {
-  useEffect(() => {
-    if (previewSDSProduct) document.body.style.overflow = 'hidden';
-    else document.body.style.overflow = 'unset';
-    return () => { document.body.style.overflow = 'unset'; }
-  }, [previewSDSProduct]);
-
-  if (!previewSDSProduct) return null;
-  
-  return (
-    <div className="fixed inset-0 bg-slate-900/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm" onClick={() => setPreviewSDSProduct(null)}>
-      <div className="bg-white rounded-xl shadow-2xl max-w-3xl w-full h-[85vh] flex flex-col overflow-hidden animate-in fade-in zoom-in duration-300" onClick={e => e.stopPropagation()}>
-        <div className="flex justify-between items-center p-5 border-b border-slate-200 bg-slate-50">
-          <h2 className="text-xl font-bold text-slate-900 flex items-center gap-2">
-            <ShieldCheck size={20} className="text-slate-500" /> 
-            SDS Preview: {previewSDSProduct.name}
-          </h2>
-          <button onClick={() => setPreviewSDSProduct(null)} className="text-slate-400 hover:text-slate-600 transition-colors">
-            <X size={24} />
-          </button>
-        </div>
-        
-        <div className="flex-1 overflow-y-auto bg-slate-200 p-4 md:p-8">
-          <div className="bg-white max-w-2xl mx-auto min-h-full p-8 md:p-12 shadow-md font-sans text-sm text-slate-800 space-y-6">
-            <div className="text-center border-b-2 border-slate-800 pb-4 mb-8">
-              <h1 className="text-2xl font-black uppercase tracking-wider mb-2">Safety Data Sheet</h1>
-              <p className="text-slate-500">According to Globally Harmonized System (GHS)</p>
-            </div>
-
-            <div>
-              <h3 className="font-bold text-lg border-b border-slate-300 mb-2">1. Identification</h3>
-              <div className="grid grid-cols-3 gap-2">
-                <span className="font-semibold">Product Name:</span> <span className="col-span-2">{previewSDSProduct.name}</span>
-                <span className="font-semibold">CAS Number:</span> <span className="col-span-2">{previewSDSProduct.cas}</span>
-                <span className="font-semibold">Molecular Wt:</span> <span className="col-span-2">{previewSDSProduct.mw}</span>
-              </div>
-            </div>
-
-            <div>
-              <h3 className="font-bold text-lg border-b border-slate-300 mb-2">2. Hazards Identification</h3>
-              <p>Not a hazardous substance or mixture. This substance is not classified as dangerous according to Directive 67/548/EEC or GHS.</p>
-            </div>
-
-            <div>
-              <h3 className="font-bold text-lg border-b border-slate-300 mb-2">3. First Aid Measures</h3>
-              <ul className="list-disc pl-5 space-y-2">
-                <li><strong>If inhaled:</strong> Move person into fresh air. If not breathing, give artificial respiration.</li>
-                <li><strong>In case of skin contact:</strong> Wash off with soap and plenty of water.</li>
-                <li><strong>In case of eye contact:</strong> Flush eyes with water as a precaution.</li>
-                <li><strong>If swallowed:</strong> Never give anything by mouth to an unconscious person. Rinse mouth with water.</li>
-              </ul>
-            </div>
-
-            <div>
-              <h3 className="font-bold text-lg border-b border-slate-300 mb-2">4. Handling and Storage</h3>
-              <p><strong>Storage conditions:</strong> {previewSDSProduct.storage}. Keep container tightly closed in a dry and well-ventilated place.</p>
-            </div>
-          </div>
-        </div>
-
-        <div className="p-5 border-t border-slate-200 bg-white flex justify-end gap-3">
-          <button 
-            onClick={() => setPreviewSDSProduct(null)} 
-            className="px-5 py-2.5 rounded-lg font-medium text-slate-600 hover:bg-slate-100 transition-colors"
-          >
-            Close
-          </button>
-          <button 
-            onClick={() => handleDownloadSDS(previewSDSProduct)}
-            className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg shadow-md transition-colors flex items-center gap-2"
-          >
-            <Download size={18} /> Download Full SDS
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 function Footer({ setCurrentPage }) {
   return (
     <footer className="bg-slate-900 text-slate-400 py-12 md:py-16 mt-auto border-t-8 border-red-600">
@@ -1168,7 +1079,6 @@ export default function App() {
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [currentPage, setCurrentPage] = useState('catalog');
-  const [previewSDSProduct, setPreviewSDSProduct] = useState(null);
   const [user, setUser] = useState(null);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
 
@@ -1189,30 +1099,86 @@ export default function App() {
     setSelectedProduct(null);
   };
 
-  const handleDownloadSDS = (product) => {
-    const sdsContent = `SAFETY DATA SHEET\n\nProduct: ${product.name}\nCAS: ${product.cas}\nMolecular Weight: ${product.mw}\n\n1. HAZARDS IDENTIFICATION\nNot a hazardous substance or mixture according to the Globally Harmonized System (GHS).\n\n2. FIRST AID MEASURES\nIf inhaled, move person to fresh air. If not breathing, give artificial respiration.\n\nFOR RESEARCH USE ONLY.`;
-    const blob = new Blob([sdsContent], { type: 'text/plain' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `${product.name.replace(/\s+/g, '_')}_SDS.txt`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
-  };
+  // --- NEW: Generate Beautiful Tailwind PDF Preview ---
+  const handleDownloadPDF = (product, type) => {
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) {
+      alert("Please allow popups to generate the PDF.");
+      return;
+    }
+    
+    const date = new Date().toLocaleDateString();
 
-  const handleDownloadCOA = (product) => {
-    const coaContent = `CERTIFICATE OF ANALYSIS\n\nProduct: ${product.name}\nCAS: ${product.cas}\nMolecular Weight: ${product.mw}\nLot Number: ${product.cas.split('-')[0]}-A\n\nTESTING RESULTS:\nPurity (HPLC): ${product.purity}\nAppearance: White Lyophilized Powder (Pass)\n\nCONCLUSION: Meets or exceeds reference standard specifications.\n\nFOR RESEARCH USE ONLY.`;
-    const blob = new Blob([coaContent], { type: 'text/plain' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `${product.name.replace(/\s+/g, '_')}_COA.txt`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
+    const coaHTML = `
+      <div class="text-center border-b-2 border-slate-800 pb-4 mb-8 mt-8">
+        <h1 class="text-3xl font-black uppercase tracking-wider mb-2">Certificate of Analysis</h1>
+        <p class="text-slate-500">HelixPeptides Analytical Laboratory</p>
+      </div>
+      <div class="grid grid-cols-2 gap-4 mb-8 text-sm bg-slate-50 p-6 rounded-lg border border-slate-200">
+         <div><span class="font-bold text-slate-500 block mb-1">Product Name</span> <span class="text-lg font-bold">${product.name}</span></div>
+         <div><span class="font-bold text-slate-500 block mb-1">Lot Number</span> <span class="font-mono text-lg">HX-${product.cas.split('-')[0]}</span></div>
+         <div><span class="font-bold text-slate-500 block mb-1">CAS Number</span> <span class="font-mono">${product.cas}</span></div>
+         <div><span class="font-bold text-slate-500 block mb-1">Date of Testing</span> <span>${date}</span></div>
+      </div>
+      <h3 class="font-bold text-lg border-b border-slate-300 mb-4 pb-2">Analytical Results</h3>
+      <table class="w-full text-left border-collapse mb-8 text-sm">
+        <tr class="bg-slate-100"><th class="p-3 border border-slate-300">Test Parameter</th><th class="p-3 border border-slate-300">Specification</th><th class="p-3 border border-slate-300">Result</th></tr>
+        <tr><td class="p-3 border border-slate-300 font-medium">Appearance</td><td class="p-3 border border-slate-300">White lyophilized powder</td><td class="p-3 border border-slate-300 font-bold text-green-600">Pass</td></tr>
+        <tr><td class="p-3 border border-slate-300 font-medium">Purity (HPLC)</td><td class="p-3 border border-slate-300">&ge; 99.0%</td><td class="p-3 border border-slate-300 font-bold text-green-600">${product.purity}</td></tr>
+        <tr><td class="p-3 border border-slate-300 font-medium">Mass Spectrometry</td><td class="p-3 border border-slate-300">Conforms to standard</td><td class="p-3 border border-slate-300 font-bold text-green-600">Pass</td></tr>
+      </table>
+      <div class="mt-8 pt-6 border-t border-slate-200">
+        <h3 class="font-bold text-lg mb-2">Conclusion</h3>
+        <p class="text-slate-700">The product satisfies the established quality control specifications and is approved for research distribution.</p>
+      </div>
+      <div class="text-xs text-red-600 font-bold uppercase text-center mt-16 pt-8 border-t border-slate-200 tracking-widest">
+        * Strictly for laboratory research use only. Not for human or veterinary use.
+      </div>
+    `;
+
+    const sdsHTML = `
+      <div class="text-center border-b-2 border-slate-800 pb-4 mb-8 mt-8">
+        <h1 class="text-3xl font-black uppercase tracking-wider mb-2">Safety Data Sheet</h1>
+        <p class="text-slate-500">According to Globally Harmonized System (GHS)</p>
+      </div>
+      <div class="mb-8"><h3 class="font-bold text-lg border-b border-slate-300 mb-4 pb-2">1. Chemical Identification</h3>
+        <div class="grid grid-cols-2 gap-4 text-sm bg-slate-50 p-6 rounded border border-slate-200">
+          <div><span class="font-bold text-slate-500 block mb-1">Product Name</span> <span class="text-lg font-bold">${product.name}</span></div>
+          <div><span class="font-bold text-slate-500 block mb-1">CAS Number</span> <span class="font-mono text-lg">${product.cas}</span></div>
+          <div><span class="font-bold text-slate-500 block mb-1">Molecular Weight</span> <span class="text-lg">${product.mw}</span></div>
+          <div><span class="font-bold text-slate-500 block mb-1">Formula Sequence</span> <span class="font-mono text-xs break-all">${product.sequence}</span></div>
+        </div>
+      </div>
+      <div class="mb-8"><h3 class="font-bold text-lg border-b border-slate-300 mb-2 pb-2">2. Hazards Identification</h3><p class="text-sm text-slate-700">Not a hazardous substance or mixture. This substance is not classified as dangerous according to Directive 67/548/EEC or GHS.</p></div>
+      <div class="mb-8"><h3 class="font-bold text-lg border-b border-slate-300 mb-2 pb-2">3. First Aid Measures</h3>
+        <ul class="list-disc pl-5 text-sm space-y-2 text-slate-700">
+          <li><strong>If inhaled:</strong> Move person into fresh air. If not breathing, give artificial respiration.</li>
+          <li><strong>In case of skin contact:</strong> Wash off with soap and plenty of water.</li>
+          <li><strong>In case of eye contact:</strong> Flush eyes with water as a precaution.</li>
+          <li><strong>If swallowed:</strong> Never give anything by mouth to an unconscious person. Rinse mouth with water.</li>
+        </ul>
+      </div>
+      <div class="mb-8"><h3 class="font-bold text-lg border-b border-slate-300 mb-2 pb-2">4. Handling and Storage</h3><p class="text-sm text-slate-700"><strong>Storage conditions:</strong> ${product.storage}. Keep container tightly closed in a dry and well-ventilated place.</p></div>
+      <div class="text-xs text-slate-400 font-bold uppercase text-center mt-16 pt-8 border-t border-slate-200 tracking-widest">
+        HelixPeptides - For Research Use Only
+      </div>
+    `;
+
+    const content = type === 'COA' ? coaHTML : sdsHTML;
+
+    printWindow.document.write(`
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>${product.name} - ${type}</title>
+          <script src="https://cdn.tailwindcss.com"></script>
+        </head>
+        <body class="bg-white text-slate-900 font-sans p-10 max-w-3xl mx-auto" onload="setTimeout(() => { window.print(); }, 800)">
+          ${content}
+        </body>
+      </html>
+    `);
+    printWindow.document.close();
   };
 
   return (
@@ -1225,15 +1191,13 @@ export default function App() {
 
       {currentPage === 'catalog' && <CatalogPage products={products} setSelectedProduct={setSelectedProduct} addToCart={addToCart} setCurrentPage={setCurrentPage} />}
       
-      {/* PRODUCTS PASSED HERE FOR DYNAMIC COA LINKS */}
-      {currentPage === 'quality' && <QualityControlPage products={products} handleDownloadCOA={handleDownloadCOA} />}
+      {currentPage === 'quality' && <QualityControlPage products={products} handleDownloadPDF={handleDownloadPDF} />}
       
-      {currentPage === 'safety' && <SafetyDataPage products={products} setPreviewSDSProduct={setPreviewSDSProduct} handleDownloadSDS={handleDownloadSDS} />}
+      {currentPage === 'safety' && <SafetyDataPage products={products} handleDownloadPDF={handleDownloadPDF} />}
       {currentPage === 'contact' && <ContactPage />}
       {currentPage === 'account' && <AccountPage user={user} setCurrentPage={setCurrentPage} />}
 
       <ProductModal selectedProduct={selectedProduct} setSelectedProduct={setSelectedProduct} addToCart={addToCart} />
-      <SDSPreviewModal previewSDSProduct={previewSDSProduct} setPreviewSDSProduct={setPreviewSDSProduct} handleDownloadSDS={handleDownloadSDS} />
       <CartDrawer isCartOpen={isCartOpen} setIsCartOpen={setIsCartOpen} cart={cart} setCart={setCart} user={user} setIsAuthModalOpen={setIsAuthModalOpen} />
       
       <Footer setCurrentPage={setCurrentPage} />
