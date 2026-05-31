@@ -5,15 +5,24 @@ import { initializeApp } from 'firebase/app';
 import { getFirestore, collection, addDoc, getDocs, onSnapshot } from 'firebase/firestore';
 import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, onAuthStateChanged, signOut } from 'firebase/auth';
 
-// --- Environment Variables ---
+// --- Environment Variables Safely Checked ---
+const getEnvVar = (name, fallback) => {
+  try {
+    if (typeof process !== 'undefined' && process.env && process.env[name]) {
+      return process.env[name];
+    }
+  } catch (e) {}
+  return fallback;
+};
+
 const firebaseConfig = {
-  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY || "AIzaSyBjm6hvcqZ1ep-IDe5ssV7kIWJWZwSvCaE",
-  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN || "peptides-d2e57.firebaseapp.com",
-  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || "peptides-d2e57",
-  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET || "peptides-d2e57.firebasestorage.app",
-  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID || "528632482409",
-  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID || "1:528632482409:web:8274819d815c5be7d970f8",
-  measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID || "G-GCF6Z7SFLJ"
+  apiKey: getEnvVar("NEXT_PUBLIC_FIREBASE_API_KEY", "AIzaSyBjm6hvcqZ1ep-IDe5ssV7kIWJWZwSvCaE"),
+  authDomain: getEnvVar("NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN", "peptides-d2e57.firebaseapp.com"),
+  projectId: getEnvVar("NEXT_PUBLIC_FIREBASE_PROJECT_ID", "peptides-d2e57"),
+  storageBucket: getEnvVar("NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET", "peptides-d2e57.firebasestorage.app"),
+  messagingSenderId: getEnvVar("NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID", "528632482409"),
+  appId: getEnvVar("NEXT_PUBLIC_FIREBASE_APP_ID", "1:528632482409:web:8274819d815c5be7d970f8"),
+  measurementId: getEnvVar("NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID", "G-GCF6Z7SFLJ")
 };
 
 const app = initializeApp(firebaseConfig);
@@ -45,7 +54,6 @@ const Mail = (p) => <IconBase {...p}><rect width="20" height="16" x="2" y="4" rx
 const User = (p) => <IconBase {...p}><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></IconBase>;
 const Download = (p) => <IconBase {...p}><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></IconBase>;
 const Send = (p) => <IconBase {...p}><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></IconBase>;
-const Phone = (p) => <IconBase {...p}><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></IconBase>;
 const Eye = (p) => <IconBase {...p}><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></IconBase>;
 const UserCircle = (p) => <IconBase {...p}><circle cx="12" cy="8" r="5"/><path d="M20 21a8 8 0 0 0-16 0"/></IconBase>;
 const LogOut = (p) => <IconBase {...p}><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></IconBase>;
@@ -230,7 +238,7 @@ function CatalogPage({ products, setSelectedProduct, addToCart, setCurrentPage }
   );
 }
 
-function QualityControlPage({ products, handleDownloadPDF }) {
+function QualityControlPage({ products, handleDownloadDocument }) {
   return (
     <div className="container mx-auto max-w-5xl px-4 py-16 animate-in fade-in slide-in-from-bottom-4 duration-500">
       <div className="flex items-center gap-4 mb-8">
@@ -280,17 +288,17 @@ function QualityControlPage({ products, handleDownloadPDF }) {
             {products.map((product) => (
               <button 
                 key={product.id} 
-                onClick={() => handleDownloadPDF(product, 'COA')}
-                className="flex items-center gap-4 p-4 bg-slate-50 border border-slate-200 rounded-lg hover:border-red-400 hover:shadow-md transition-all group text-left"
+                onClick={() => handleDownloadDocument(product, 'COA')}
+                className="flex items-center gap-4 p-4 bg-slate-50 border border-slate-200 rounded-lg hover:border-blue-400 hover:shadow-md transition-all group text-left"
               >
-                <div className="bg-red-100 p-2 rounded text-red-600 group-hover:bg-red-600 group-hover:text-white transition-colors">
+                <div className="bg-blue-100 p-2 rounded text-blue-600 group-hover:bg-blue-600 group-hover:text-white transition-colors">
                   <FileText size={24} />
                 </div>
                 <div className="flex-1">
                   <h4 className="font-bold text-slate-900 text-sm leading-tight mb-1">{product.name}</h4>
-                  <p className="text-xs text-slate-500">Preview Document PDF</p>
+                  <p className="text-xs text-slate-500">View Document PDF</p>
                 </div>
-                <Eye size={18} className="text-slate-400 group-hover:text-red-500 transition-colors" />
+                <Eye size={18} className="text-slate-400 group-hover:text-blue-500 transition-colors" />
               </button>
             ))}
           </div>
@@ -300,7 +308,7 @@ function QualityControlPage({ products, handleDownloadPDF }) {
   );
 }
 
-function SafetyDataPage({ products, handleDownloadPDF }) {
+function SafetyDataPage({ products, handleDownloadDocument }) {
   return (
     <div className="container mx-auto max-w-6xl px-4 py-16 animate-in fade-in slide-in-from-bottom-4 duration-500">
       <div className="flex items-center gap-4 mb-8">
@@ -332,10 +340,10 @@ function SafetyDataPage({ products, handleDownloadPDF }) {
                   <td className="p-4 text-slate-500 text-sm">Jan 12, 2024</td>
                   <td className="p-4 text-right">
                     <button 
-                      onClick={() => handleDownloadPDF(product, 'SDS')}
-                      className="inline-flex items-center gap-1 text-sm font-medium text-blue-600 hover:text-blue-800 transition-colors"
+                      onClick={() => handleDownloadDocument(product, 'SDS')}
+                      className="inline-flex items-center gap-1 text-sm font-medium text-blue-600 hover:text-blue-800 transition-colors bg-blue-50 px-3 py-1.5 rounded-md hover:bg-blue-100"
                     >
-                      <Eye size={16} /> Preview Document PDF
+                      <Eye size={16} /> View Document
                     </button>
                   </td>
                 </tr>
@@ -1099,18 +1107,18 @@ export default function App() {
     setSelectedProduct(null);
   };
 
-  // --- NEW: Generate Beautiful Tailwind PDF Preview ---
-  const handleDownloadPDF = (product, type) => {
-    const printWindow = window.open('', '_blank');
-    if (!printWindow) {
-      alert("Please allow popups to generate the PDF.");
+  // --- NEW: Interactive Document Viewer Tab ---
+  const handleDownloadDocument = (product, type) => {
+    const docWindow = window.open('', '_blank');
+    if (!docWindow) {
+      alert("Please allow popups to view the document.");
       return;
     }
     
     const date = new Date().toLocaleDateString();
 
     const coaHTML = `
-      <div class="text-center border-b-2 border-slate-800 pb-4 mb-8 mt-8">
+      <div class="text-center border-b-2 border-slate-800 pb-4 mb-8 mt-4">
         <h1 class="text-3xl font-black uppercase tracking-wider mb-2">Certificate of Analysis</h1>
         <p class="text-slate-500">HelixPeptides Analytical Laboratory</p>
       </div>
@@ -1137,7 +1145,7 @@ export default function App() {
     `;
 
     const sdsHTML = `
-      <div class="text-center border-b-2 border-slate-800 pb-4 mb-8 mt-8">
+      <div class="text-center border-b-2 border-slate-800 pb-4 mb-8 mt-4">
         <h1 class="text-3xl font-black uppercase tracking-wider mb-2">Safety Data Sheet</h1>
         <p class="text-slate-500">According to Globally Harmonized System (GHS)</p>
       </div>
@@ -1166,19 +1174,42 @@ export default function App() {
 
     const content = type === 'COA' ? coaHTML : sdsHTML;
 
-    printWindow.document.write(`
+    docWindow.document.write(`
       <!DOCTYPE html>
       <html>
         <head>
           <title>${product.name} - ${type}</title>
           <script src="https://cdn.tailwindcss.com"></script>
+          <style>
+            @media print {
+              body { background-color: white !important; }
+              .no-print { display: none !important; }
+              .page-container { box-shadow: none !important; border: none !important; margin: 0 !important; padding: 0 !important; }
+            }
+          </style>
         </head>
-        <body class="bg-white text-slate-900 font-sans p-10 max-w-3xl mx-auto" onload="setTimeout(() => { window.print(); }, 800)">
-          ${content}
+        <body class="bg-slate-200 text-slate-900 font-sans min-h-screen pb-12">
+          
+          <div class="no-print bg-slate-900 text-white p-4 sticky top-0 z-50 shadow-md">
+            <div class="max-w-4xl mx-auto flex justify-between items-center">
+              <div class="font-bold flex items-center gap-2">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-blue-400"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+                Document Viewer
+              </div>
+              <button onclick="window.print()" class="bg-blue-600 hover:bg-blue-500 transition-colors px-4 py-2 rounded text-sm font-bold shadow-sm flex items-center gap-2">
+                Print / Save as PDF
+              </button>
+            </div>
+          </div>
+
+          <div class="page-container max-w-4xl mx-auto bg-white p-12 mt-8 shadow-2xl border border-slate-300 min-h-[1056px]">
+            ${content}
+          </div>
+
         </body>
       </html>
     `);
-    printWindow.document.close();
+    docWindow.document.close();
   };
 
   return (
@@ -1191,13 +1222,16 @@ export default function App() {
 
       {currentPage === 'catalog' && <CatalogPage products={products} setSelectedProduct={setSelectedProduct} addToCart={addToCart} setCurrentPage={setCurrentPage} />}
       
-      {currentPage === 'quality' && <QualityControlPage products={products} handleDownloadPDF={handleDownloadPDF} />}
+      {currentPage === 'quality' && <QualityControlPage products={products} handleDownloadDocument={handleDownloadDocument} />}
       
-      {currentPage === 'safety' && <SafetyDataPage products={products} handleDownloadPDF={handleDownloadPDF} />}
+      {currentPage === 'safety' && <SafetyDataPage products={products} handleDownloadDocument={handleDownloadDocument} />}
+      
       {currentPage === 'contact' && <ContactPage />}
+      
       {currentPage === 'account' && <AccountPage user={user} setCurrentPage={setCurrentPage} />}
 
       <ProductModal selectedProduct={selectedProduct} setSelectedProduct={setSelectedProduct} addToCart={addToCart} />
+      
       <CartDrawer isCartOpen={isCartOpen} setIsCartOpen={setIsCartOpen} cart={cart} setCart={setCart} user={user} setIsAuthModalOpen={setIsAuthModalOpen} />
       
       <Footer setCurrentPage={setCurrentPage} />
